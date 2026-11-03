@@ -1,0 +1,29 @@
+# Dependencias y archivos generados
+node_modules/
+dist/
+output/
+outputs/
+work/
+tmp/
+*.log
+
+# Descargas originales y archivos de trabajo; pueden contener cookies.
+sources/
+
+# Las clases son material del profesor, no código propio del juego.
+docs/referencias/
+*.pdf
+
+# Configuración privada del equipo
+.env
+.env.*
+!.env.example
+*cookies*
+*.pem
+*.key
+.DS_Store
+Thumbs.db
+
+# Herramientas locales
+.vscode/
+.idea/

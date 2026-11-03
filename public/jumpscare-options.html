@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Elegir jumpscare — La casa no tiene abajo</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#13130f;color:#e6ddc9}body{max-width:1100px;margin:auto;padding:32px 20px 60px}header{border-bottom:1px solid #514736;padding-bottom:20px}small{color:#c6a66a;letter-spacing:.18em}h1{font-family:Georgia,serif;font-size:clamp(32px,5vw,56px);font-weight:400;margin:14px 0}p{color:#b9b09e;line-height:1.6}a{color:#e0ba76}#options{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;margin:24px 0}article{background:#201f19;border:1px solid #4a4131;border-radius:10px;padding:18px}article strong{color:#e0ba76;font-size:13px;letter-spacing:.12em}h2{font-size:18px;font-weight:500;margin:10px 0 6px}article p{font-size:13px;margin:0 0 16px}audio{width:100%;height:38px}label{display:flex;gap:12px;align-items:center;flex-wrap:wrap}input{accent-color:#e0ba76}.warning{color:#e0ba76}footer{font-size:13px}
+</style>
+<header>
+<small>ARCHIVO SONORO / 20 OPCIONES</small>
+<h1>Elige tu jumpscare</h1>
+<p>Escucha cada sonido y dime su número. Esta página no cambia el juego.</p>
+<p class="warning">Sonidos bruscos de terror. Empieza con volumen bajo; ninguno se reproduce automáticamente.</p>
+<label>Volumen de escucha <input id="volume" type="range" min="0" max="1" step=".01" value=".4"><output id="level">40%</output></label>
+</header>
+<main id="options"></main>
+<footer>
+<p>01–16: <a href="https://opengameart.org/content/horror-hit-soundpack-1" target="_blank" rel="noopener">Horror Hit Soundpack 1 — psychhead_ (CC0)</a>. 17: <a href="https://opengameart.org/content/horror-scream1" target="_blank" rel="noopener">Horror scream1 — Vinrax (CC0)</a>. 18–20: mezclas de estas fuentes. Muestras recortadas a un máximo de 3 segundos y normalizadas para compararlas.</p>
+</footer>
+<script>
+const choices=[
+ ['Impacto muy grave A','Very Bassy 1'],['Impacto muy grave B','Very Bassy 2'],['Impacto muy grave C','Very Bassy 3'],['Impacto muy grave D','Very Bassy 4'],
+ ['Impacto grave A','Bassy 1'],['Impacto grave B','Bassy 3'],['Impacto grave C','Bassy 6'],['Impacto grave D','Bassy 10'],
+ ['Impacto medio A','Mid 2'],['Impacto medio B','Mid 7'],['Impacto medio C','Mid 11'],['Impacto medio D','Mid 18'],
+ ['Impacto agudo A','High 2'],['Impacto agudo B','High 8'],['Impacto agudo C','High 12'],['Impacto agudo D','High 19'],
+ ['Grito de terror','Grito sin impacto añadido'],['Muy grave + grito','Mezcla de 03 y 17'],['Grave + agudo','Mezcla de 06 y 15'],['Medio + grito','Mezcla de 11 y 17']
+];
+const list=document.querySelector('#options'),volume=document.querySelector('#volume');
+choices.forEach(([title,detail],index)=>{
+ const id=String(index+1).padStart(2,'0'),card=document.createElement('article');
+ card.innerHTML=`<strong>OPCIÓN ${id}</strong><h2>${title}</h2><p>${detail}</p><audio controls preload="none" src="/assets/audio-preview/${id}.mp3"></audio>`;
+ const audio=card.querySelector('audio');audio.volume=Number(volume.value);
+ audio.addEventListener('play',()=>document.querySelectorAll('audio').forEach(other=>{if(other!==audio)other.pause();}));list.append(card);
+});
+volume.addEventListener('input',()=>{document.querySelector('#level').value=Math.round(volume.value*100)+'%';document.querySelectorAll('audio').forEach(audio=>audio.volume=Number(volume.value));});
+</script>
+</html>

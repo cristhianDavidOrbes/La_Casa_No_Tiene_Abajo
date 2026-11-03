@@ -1,0 +1,8 @@
+Creature reconstruction service: Stable Fast 3D by Stability AI.
+Powered by Stability AI.
+
+This Stability AI Model is licensed under the Stability AI Community License, Copyright (c) Stability AI Ltd. All Rights Reserved.
+
+This project includes the generated 3D output, not the generative model weights or software. No Stability AI model weights were modified or redistributed.
+Concept image: original AI-generated design created for La casa no tiene abajo.
+CC0 environment assets: Kenney and Poly Haven, listed separately in ASSETS_Y_LICENCIAS.md.

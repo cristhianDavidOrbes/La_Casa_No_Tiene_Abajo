@@ -1,0 +1,3 @@
+import fs from 'node:fs';
+import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
+export async function loadRig(file='el-inquilino-tripo-repaired.glb'){const b=fs.readFileSync(new URL('../public/assets/creature/'+file,import.meta.url)),oldSize=b.readUInt32LE(12),json=JSON.parse(b.subarray(20,20+oldSize));for(const m of json.meshes)for(const p of m.primitives)delete p.material;const raw=Buffer.from(JSON.stringify(json)),size=Math.ceil(raw.length/4)*4,out=Buffer.alloc(20+size+b.length-(20+oldSize),32);b.copy(out,0,0,20);out.writeUInt32LE(out.length,8);out.writeUInt32LE(size,12);raw.copy(out,20);b.copy(out,20+size,20+oldSize);return (await new GLTFLoader().parseAsync(out.buffer.slice(out.byteOffset,out.byteOffset+out.byteLength),'' )).scene;}

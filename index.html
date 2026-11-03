@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#101413"><title>La casa no tiene abajo</title></head><body>
+<main id="game" aria-label="La casa no tiene abajo"></main>
+<div id="vhs" aria-hidden="true"></div><div id="vignette" aria-hidden="true"></div><div id="blindness" aria-hidden="true"></div><div id="locker-view" class="hidden" aria-hidden="true"><div class="locker-slits"></div></div><div id="fade" aria-hidden="true"></div><div id="capture" class="hidden" aria-hidden="true"></div>
+<section id="loading-screen" class="overlay" aria-label="Cargando la cinta"><div class="loading-unit instrument"><div class="loading-top"><span>ARCHIVO DOMÉSTICO</span><span>CINTA 001 / 1998</span></div><h2>Recuperando<br>la señal.</h2><div class="loading-window" aria-hidden="true"><span class="loading-spool"></span><div class="loading-tape-label">PARA VOLVER<small>JULIÁN · OCT 1998</small></div><span class="loading-spool"></span></div><p>La casa está al otro lado de la grabación.</p><div class="loading-track" aria-hidden="true"><i id="loading-bar"></i></div><div class="loading-count" role="status"><span id="loading-detail">PREPARANDO EL RECEPTOR</span><span id="loading-percent">0%</span></div></div></section>
+<section id="menu" class="overlay"><div class="menu-content">
+<h1>LA CASA<br>NO TIENE<br>ABAJO</h1>
+<div class="eyebrow">ARCHIVO DOMÉSTICO · CINTA 001</div>
+<div class="menu-actions"><button id="start" class="primary" disabled>Preparando la señal…</button><button id="continue" disabled>Continuar</button><button id="about">Ajustes</button></div>
+<div id="load-status" role="status">Cargando recursos locales</div>
+<div class="menu-foot"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M6 20V13a10 10 0 0 1 20 0v7M6 18H3v10h6V18ZM26 18h3v10h-6V18Z" fill="none" stroke="currentColor" stroke-width="2"/></svg><span>USA AURICULARES</span></div>
+</div><span class="menu-time">03:17 A. M. / SEÑAL LOCAL</span></section>
+<section id="letter-intro" class="overlay hidden" aria-label="La carta de Julián"><p class="letter-context"><span>17 de octubre de 1998</span>Tu tío lleva once días desaparecido.<br>Mañana vacían su casa. Mamá te dio sus llaves y este sobre.</p><div id="envelope-scene"><button id="open-envelope" class="sealed-envelope" aria-label="Abrir el sobre de Julián"><span class="envelope-to">Para ti.</span><span class="wax-seal" aria-hidden="true">J</span><span class="envelope-hint">ABRIR EL SOBRE</span><span class="envelope-from">De tu tío, Julián</span></button><article id="letter-paper" hidden><div class="letter-date">Julián · 6 de octubre, 1998</div><h2>Si estás leyendo esto…</h2><div id="letter-copy"></div><div class="letter-signature">Tu tío, Julián</div><button id="keep-letter">Guardar la carta y entrar</button></article></div></section>
+<section id="pause" class="overlay hidden"><div class="panel pause-panel"><div class="eyebrow">Ⅱ / SEÑAL EN ESPERA</div><h2>La casa<br>puede esperar.</h2><p>La grabación está pausada.</p><button id="resume" class="primary">Continuar grabación</button><button id="pause-settings">Ajustes de señal</button><button id="checkpoint">Repetir punto de control</button><button id="quit">Volver al inicio</button></div></section>
+<section id="settings-screen" class="overlay hidden" aria-labelledby="settings-title"><div class="panel"><div class="eyebrow">CALIBRACIÓN / RECEPTOR 001</div><h2 id="settings-title">Ajustes de señal.</h2><p>Encuentra tu imagen y tu sonido.</p><div class="settings">
+<label>Volumen <input id="volume" type="range" min="0" max="1" step="0.05" value="0.65"><output for="volume">65%</output></label>
+<label>Brillo <input id="brightness" type="range" min="0.7" max="1.7" step="0.05" value="1.1"><output for="brightness">1.10</output></label>
+<label>Sensibilidad <input id="sensitivity" type="range" min="0.4" max="2" step="0.1" value="1"><output for="sensitivity">1.0</output></label>
+<label><input id="comfort" type="checkbox"> Reducir balanceo y efectos VHS</label>
+</div><button id="settings-guide">Controles y créditos</button><button id="settings-back" class="primary">Volver · Esc</button><p class="small">Los ajustes se conservan en este navegador.</p></div></section>
+<section id="hud" class="hidden"><i class="viewfinder top-left"></i><i class="viewfinder top-right"></i><i class="viewfinder bottom-left"></i><i class="viewfinder bottom-right"></i><div class="hud-top"><div class="recording"><span class="eyebrow"><span class="rec-dot"></span> REC</span><div id="clock">00:00:00</div></div><div class="location"><span id="zone">01 / LA SALA</span><small id="gravity">GRAVEDAD ESTABLE</small></div></div><div id="objective"><span>SEÑAL PENDIENTE</span><p></p></div><div id="crosshair"></div><div id="interact" class="hidden"><kbd>E</kbd> <span></span></div><div id="subtitle" role="status"></div><div id="toast" role="status"></div><div class="hud-bottom"><div class="hud-survival"><div id="lamp-status" class="lamp-status"><svg class="flash-icon" viewBox="0 0 72 26" aria-hidden="true"><path d="M3 9H40L53 4H64V22H53L40 17H3ZM60 4V22M8 9V17" fill="currentColor" stroke="currentColor" stroke-width="2"/></svg><span class="lamp-title">F</span><div id="lamp-pips" class="lamp-pips"><span class="pip"></span></div><span id="lamp-count">SIN LINTERNA</span></div><div id="stamina-container" class="stamina-container"><span id="stamina-label">ALIENTO</span><div class="stamina-bar"><div id="stamina-fill"></div></div><span id="stamina-val">100%</span></div></div><span id="relays">CONEXIONES ○ ○ ○</span><span class="hud-shortcuts">J · REGISTRO<br>ESC · PAUSA</span></div></section>
+<section id="remote" class="hidden"><div class="remote-brand"><span>RECEPTOR LOCAL</span><i></i></div><span class="remote-readout" id="remote-channel">CANAL 00</span><div id="channels"></div><small>1–5 · CANAL<br>E · LEVANTARTE</small></section>
+<section id="dialog" class="overlay hidden"><div class="panel"><div id="dialog-tag" class="eyebrow"></div><h2 id="dialog-title"></h2><div id="dialog-content"></div><div id="dialog-actions"></div><button id="close-dialog">Cerrar · E / Esc</button></div></section>
+<section id="ending" class="overlay hidden"><div class="panel"><div class="eyebrow">FIN DE LA GRABACIÓN / PARA VOLVER</div><h2>La llevaste<br>de vuelta.</h2><p>Afuera, el polvo vuelve a caer hacia el suelo. La casa queda en silencio. En el bolsillo llevas la única copia de aquella tarde con Julián.</p><blockquote>«Dile a mamá que no he olvidado<br>el camino a casa.»</blockquote><p>No encontraste a tu tío.<br>Pero su voz ya no está sola en esa casa.</p><p id="end-stats"></p><button id="replay" class="primary">Una nueva grabación</button><button id="end-credits">Créditos y procedencia</button></div></section>
+<section id="radio-screen" class="overlay hidden" aria-label="Receptor de radio">
+ <div class="radio-panel instrument">
+  <div class="radio-brand"><span>JULIÁN · ELECTRÓNICA</span><span>RECEPTOR / 1984</span></div>
+  <div class="eyebrow">CONEXIÓN 02 / FRECUENCIA DE MANTENIMIENTO</div>
+  <h2>Receptor de mantenimiento</h2>
+  <div class="radio-body">
+   <div class="radio-band-label">ONDA CORTA <span>MHz</span></div>
+   <div class="radio-scale" id="radio-scale" aria-hidden="true"></div>
+   <div class="radio-freq-display"><span id="radio-freq-val">61.0</span><small>MHz</small></div>
+   <div class="radio-controls">
+    <div class="radio-speaker-unit"><div class="radio-vu" id="radio-vu"></div><div class="speaker-grille" aria-hidden="true"></div><div class="radio-signal-bar" aria-hidden="true"><div id="radio-signal-fill"></div></div><span class="instrument-label">SEÑAL / ONDA CORTA</span></div>
+    <div class="radio-knob-area"><span class="instrument-label">SINTONÍA</span>
+    <div class="radio-knob" id="radio-knob" role="slider" aria-label="Dial de sintonía" aria-valuemin="0" aria-valuemax="4" tabindex="0">
+     <svg viewBox="0 0 100 100" width="100" height="100">
+      <defs><radialGradient id="dial-metal" cx=".35" cy=".25"><stop stop-color="#968062"/><stop offset=".4" stop-color="#5c4b37"/><stop offset="1" stop-color="#241e17"/></radialGradient></defs>
+      <g id="knob-rotor"><circle cx="50" cy="50" r="46" fill="url(#dial-metal)" stroke="#bb9a61" stroke-width="1"/><circle cx="50" cy="50" r="41" fill="none" stroke="#30261c" stroke-width="1"/><line id="knob-needle" x1="50" y1="8" x2="50" y2="24" stroke="#ffc07b" stroke-width="2.5" stroke-linecap="round"/><path d="M25 30L35 23M64 78L73 70" stroke="#e1c695" opacity=".2"/></g>
+     </svg>
+    </div>
+    <span class="knob-guide">− &nbsp; &nbsp; +</span>
+    </div>
+   </div>
+   <div id="radio-status" class="readout">SIN SINCRONIZAR</div>
+  </div>
+  <p class="radio-hint">GIRA LA PERILLA · ARRASTRA O USA ← →</p>
+  <div class="radio-actions"><button id="radio-sync-btn" class="primary">Sincronizar</button><button id="radio-close-btn">Volver · Esc</button></div>
+ </div>
+</section>
+<section id="rewind-screen" class="overlay hidden" aria-label="Rebobinador manual">
+ <div class="rewind-machine instrument">
+  <div class="rewind-brand"><span>JULIÁN / SISTEMA DOMÉSTICO</span><span>MODELO R-84</span></div>
+  <div class="rewind-top"><div><div class="eyebrow">CINTA FAMILIAR / OCT 1998</div><h2>Para volver.</h2></div><div class="rewind-led"><i></i> REV</div></div>
+  <div class="cassette-deck">
+   <div class="cassette-window">
+    <button id="rewind-reel-control" aria-label="Girar carrete izquierdo hacia atrás"><span class="tape-roll tape-left" aria-hidden="true"></span><span id="reel-left" class="reel"></span><svg class="rewind-arrow" viewBox="0 0 160 160" aria-hidden="true"><path d="M135 112A65 65 0 1 0 39 25M39 25L43 9M39 25L55 27" fill="none" stroke="currentColor" stroke-width="3"/></svg></button>
+    <div class="cassette-label"><span>JULIÁN · OCT 1998</span><strong>PARA<br>VOLVER</strong><small>GRABACIÓN DOMÉSTICA</small></div>
+    <div class="passive-reel"><span class="tape-roll tape-right" aria-hidden="true"></span><span id="reel-right" class="reel" aria-hidden="true"></span></div>
+    <div class="tape-band" aria-hidden="true"></div>
+   </div>
+   <div class="cassette-marking">LADO A · 60 MIN <span>HI-FI STEREO</span></div>
+  </div>
+  <div class="rewind-meter"><span>REBOBINANDO</span><b id="rewind-percent">0%</b><div class="rewind-track"><i id="rewind-progress"></i></div></div>
+  <div id="rewind-status" role="status">GIRA EL CARRETE IZQUIERDO HACIA ATRÁS</div>
+  <p class="rewind-instruction">Gira el carrete izquierdo en sentido antihorario.</p>
+  <div class="rewind-actions"><button id="rewind-hold" class="primary">◀◀ &nbsp; Mantén para rebobinar · ←</button><button id="rewind-close">Retirar cinta · Esc</button></div>
+ </div>
+</section>
+<script type="module" src="/src/main.js"></script></body></html>
