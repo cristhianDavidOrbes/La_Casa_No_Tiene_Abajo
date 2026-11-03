@@ -1,3 +1,4 @@
+// Semanas 5–6: un único mundo físico; cuerpos, fuerzas, contactos y paso fijo.
 import * as C from 'cannon-es';
 import { Vector3, Quaternion, Box3 } from 'three';
 import { LINKS, roomQuaternion, worldPosition, localPosition } from './level.js';

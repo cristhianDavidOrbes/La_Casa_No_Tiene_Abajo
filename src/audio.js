@@ -1,3 +1,6 @@
+import { Audio, AudioContext as ThreeAudioContext, AudioListener, PositionalAudio } from 'three';
+
+// Semana 3: cámara = oyente; cada golpe o voz ocupa una posición en la casa.
 const FILES = [
   ...Array.from({ length: 5 }, (_, i) => `footstep_wood_00${i}`),
   ...Array.from({ length: 5 }, (_, i) => `footstep_concrete_00${i}`),
@@ -62,12 +65,16 @@ export class Soundscape {
     })();
     return this.preparing;
   }
-  async init() {
+  async init(camera, scene) {
     if (this.ctx) {
       await this.ctx.resume();
       return;
     }
     this.ctx = new AudioContext();
+    ThreeAudioContext.setContext(this.ctx);
+    this.listener = new AudioListener();
+    camera.add(this.listener);
+    this.scene = scene;
     this.master = this.ctx.createGain();
     this.master.gain.value = this.volume;
     const limiter = this.ctx.createDynamicsCompressor();
@@ -77,6 +84,8 @@ export class Soundscape {
     limiter.attack.value = 0.003;
     limiter.release.value = 0.16;
     this.master.connect(limiter).connect(this.ctx.destination);
+    this.listener.gain.disconnect();
+    this.listener.gain.connect(this.master);
     await this.prepare();
     const noise = this.ctx.createBuffer(1, this.ctx.sampleRate * 3, this.ctx.sampleRate),
       data = noise.getChannelData(0);
@@ -142,32 +151,22 @@ export class Soundscape {
   }
   play(name, volume = 0.3, rate = 1, position = null) {
     if (!this.buffers[name] || !this.ctx) return;
-    const src = this.ctx.createBufferSource();
-    src.buffer = this.buffers[name];
-    src.playbackRate.value = rate;
-    const gain = this.ctx.createGain();
-    gain.gain.value = volume;
-    src.connect(gain);
-    let pan;
+    const sound = position ? new PositionalAudio(this.listener) : new Audio(this.listener);
+    sound.setBuffer(this.buffers[name]).setVolume(volume).setPlaybackRate(rate);
     if (position) {
-      pan = this.ctx.createPanner();
-      pan.panningModel = 'HRTF';
-      pan.distanceModel = 'inverse';
-      pan.refDistance = 2;
-      pan.maxDistance = 25;
-      pan.rolloffFactor = 0.6;
-      pan.positionX.value = position.x;
-      pan.positionY.value = position.y;
-      pan.positionZ.value = position.z;
-      gain.connect(pan).connect(this.master);
-    } else gain.connect(this.master);
-    src.onended = () => {
-      src.disconnect();
-      gain.disconnect();
-      pan?.disconnect();
+      sound.setRefDistance(2).setMaxDistance(25).setRolloffFactor(0.6);
+      sound.position.copy(position);
+      this.scene.add(sound);
+    }
+    sound.onEnded = () => {
+      sound.isPlaying = false;
+      sound.disconnect();
+      sound.gain.disconnect();
+      sound.removeFromParent();
     };
-    src.start();
-    return src;
+    sound.play();
+    sound.updateMatrixWorld(true);
+    return sound;
   }
   footstep(room, run = false) {
     const type = room === 0 ? 'wood' : 'concrete';
@@ -365,35 +364,10 @@ export class Soundscape {
   }
   update(camera, room, tension) {
     if (!this.ctx) return;
-    const l = this.ctx.listener;
-    const f = { x: 0, y: 0, z: -1 };
-    const q = camera.quaternion; // Quaternion-vector rotation without a library dependency.
-    const rotate = (v) => {
-      const tx = 2 * (q.y * v.z - q.z * v.y),
-        ty = 2 * (q.z * v.x - q.x * v.z),
-        tz = 2 * (q.x * v.y - q.y * v.x);
-      return {
-        x: v.x + q.w * tx + q.y * tz - q.z * ty,
-        y: v.y + q.w * ty + q.z * tx - q.x * tz,
-        z: v.z + q.w * tz + q.x * ty - q.y * tx
-      };
-    };
-    const forward = rotate(f),
-      up = rotate({ x: 0, y: 1, z: 0 }),
-      pose = {
-        positionX: camera.position.x,
-        positionY: camera.position.y,
-        positionZ: camera.position.z,
-        forwardX: forward.x,
-        forwardY: forward.y,
-        forwardZ: forward.z,
-        upX: up.x,
-        upY: up.y,
-        upZ: up.z
-      };
-    // Keep a bad camera sample from throwing every frame before rendering.
-    if (!Object.values(pose).every(Number.isFinite)) return;
-    for (const [key, v] of Object.entries(pose)) if (l[key]) l[key].value = v;
+    if (![...camera.position.toArray(), ...camera.quaternion.toArray()].every(Number.isFinite))
+      return;
+    // AudioListener transforma posición y orientación junto a la cámara.
+    camera.updateMatrixWorld(true);
     if (this.ready) {
       this.drone.frequency.setTargetAtTime(48 - room * 4, this.ctx.currentTime, 0.8);
       this.droneGain.gain.setTargetAtTime(

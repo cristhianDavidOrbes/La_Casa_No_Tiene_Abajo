@@ -1,3 +1,4 @@
+// Semanas 6 y 9: una zona activa el lanzamiento; Cannon mueve y hace chocar los libros.
 import { Vector3 } from 'three';
 const Y = new Vector3(0, 1, 0);
 export class BookBurst {

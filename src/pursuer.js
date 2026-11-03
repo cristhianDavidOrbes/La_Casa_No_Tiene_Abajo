@@ -1,3 +1,4 @@
+// Reglas del monstruo: elegir destino y postura; Cannon resuelve el desplazamiento.
 import { Vector3, Quaternion, Matrix4, MathUtils, Ray } from 'three';
 import { LEVELS, roomQuaternion, localPosition, worldPosition, portalOpen } from './level.js';
 import { insideHole } from './physics.js';

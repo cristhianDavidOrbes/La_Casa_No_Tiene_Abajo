@@ -1,3 +1,4 @@
+// Ampliación de semanas 2 y 5: cada cuarto rota la dirección de su gravedad.
 import { Vector3 } from 'three';
 import { LINKS, roomQuaternion, worldPosition, localPosition, endpoint } from './level.js';
 import { EYE_HEIGHT, insideHole } from './physics.js';

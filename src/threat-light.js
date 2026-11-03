@@ -1,3 +1,4 @@
+// Semanas 4 y 9: distancia al monstruo + seno = intensidad variable de las lámparas.
 const clamp = (n) => Math.max(0, Math.min(1, n));
 function pulse(phase, near, comfort) {
   const slow = 0.5 + 0.5 * Math.sin(phase + Math.sin(phase * 0.19) * 1.4);

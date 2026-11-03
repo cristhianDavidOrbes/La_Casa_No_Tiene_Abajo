@@ -1,3 +1,4 @@
+// Ampliación necesaria: el esqueleto sigue apoyos; Cannon calcula las colisiones.
 import { Vector3, Quaternion, Matrix4, Ray, MathUtils } from 'three';
 import { probeContact, reachableContact } from './surface-contact.js';
 const X = new Vector3(1, 0, 0),
@@ -18,6 +19,7 @@ function aim(bone, current, target) {
   );
 }
 export function solveLimb(upper, lower, end, target, pole, minExtension = 0) {
+  // Dos segmentos: orientar brazo/muslo, doblar codo/rodilla y alcanzar el apoyo.
   const a = pos(upper),
     b = pos(lower),
     c = pos(end),

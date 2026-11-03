@@ -47,6 +47,10 @@ import {
 import { LockerSearch } from './locker.js';
 import { chairIcon, mountInstrumentArt } from './ui-art.js';
 
+// Recorrido para explicar el juego: escena -> recursos -> eventos -> física -> render.
+// Semanas 1–2: main/house; 3: audio y TV; 4: luces y polvo; 5–6: Cannon.
+// Semanas 7–8: HDR y GLB; 9: distancias, puzles, zonas y accesos entre cuartos.
+// Ampliaciones necesarias: persecución, apoyos IK, gravedad por cuarto y final del CRT.
 const $ = (id) => document.getElementById(id),
   show = (id, on = true) => $(id).classList.toggle('hidden', !on);
 mountInstrumentArt();
@@ -417,7 +421,7 @@ async function startGame(resume = false) {
   show('dialog', false);
   show('hud');
   $('fade').style.opacity = '0';
-  await audio.init();
+  await audio.init(camera, scene);
   audio.attachMedia(broadcastVideo);
   broadcastVideo.muted = false;
   if (state.channel) setChannel(state.channel);
@@ -2234,7 +2238,7 @@ function frame(now) {
     dt = Math.min(rawDt, 0.05);
   last = now;
   frameTime += dt;
-  if (!world || warming) return;
+  if (!ready || warming) return;
   if (mode === 'cinematic' || mode === 'ending') {
     if (mode === 'cinematic') {
       endingSequence.update(dt);

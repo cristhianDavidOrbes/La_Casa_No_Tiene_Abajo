@@ -1,3 +1,4 @@
+// Semanas 2, 4, 7 y 8: modelos compartidos, grupos, materiales PBR, focos y partículas.
 import * as T from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';

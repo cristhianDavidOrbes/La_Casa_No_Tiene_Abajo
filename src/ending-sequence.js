@@ -1,3 +1,4 @@
+// Final narrativo: cámara, personaje y puerta cambian con el tiempo; todo está precargado.
 import * as T from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { solveLimb } from './creature-motion.js';
