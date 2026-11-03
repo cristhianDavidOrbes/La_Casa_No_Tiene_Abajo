@@ -1,0 +1,7 @@
+node_modules/
+dist/
+public/assets/
+sources/
+output/
+archive/
+docs/referencias/

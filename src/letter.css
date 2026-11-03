@@ -1,30 +1,303 @@
-#letter-intro{z-index:20;flex-direction:column;justify-content:center;gap:24px;background:radial-gradient(ellipse at 50% 48%,#372a1ce8,#060b0bf7 75%);backdrop-filter:blur(9px);overflow:auto;padding:32px 20px}
-.letter-context{color:#c1b6a3;text-align:center;font:13px/1.7 'Courier New',monospace;max-width:470px;margin:0}
-.letter-context span{display:block;text-transform:uppercase;letter-spacing:3px;font-size:9px;color:#9f8b6c;margin-bottom:12px}
-#envelope-scene{position:relative;width:min(500px,90vw);perspective:1200px;flex-shrink:0}
-.sealed-envelope{position:relative;display:block;width:100%;height:300px;padding:0;border:1px solid #958064;border-radius:3px;background:linear-gradient(150deg,#c2ae89,#aa916b);box-shadow:0 25px 70px #000b,inset 0 0 55px #5e381842;transform:rotate(-3deg);color:#40321f;text-align:center;isolation:isolate;transition:transform .3s,filter .3s}
-.sealed-envelope::before{content:'';position:absolute;inset:0;clip-path:polygon(0 0,100% 0,50% 68%);background:linear-gradient(#d1bc96,#b59b75);filter:drop-shadow(0 3px 2px #42250c88);border-top:1px solid #e5d1b0;z-index:-1}
-.sealed-envelope::after{content:'';position:absolute;inset:0;clip-path:polygon(0 100%,0 17%,50% 69%,100% 17%,100% 100%);background:linear-gradient(35deg,#b69a71,#c8b18a);box-shadow:inset 0 -25px 50px #80552d33;z-index:-1}
-.sealed-envelope:hover,.sealed-envelope:focus-visible{background:linear-gradient(150deg,#c2ae89,#aa916b);border-color:#d2be99;transform:rotate(-1deg) translateY(-5px);filter:brightness(1.07)}
-.envelope-to{position:absolute;top:36px;left:32px;font:italic 24px Georgia,serif;transform:rotate(-4deg)}
-.envelope-from{position:absolute;bottom:24px;right:27px;font:italic 17px Georgia,serif}
-.wax-seal{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);display:grid;place-items:center;width:64px;height:62px;border-radius:46% 54% 49% 43%;color:#b47b60;background:radial-gradient(circle at 32% 28%,#8c4636,#4a211c);box-shadow:inset 0 0 0 4px #793e30,inset 0 0 0 6px #4a211c,2px 5px 7px #40251480;font:italic 34px Georgia,serif;text-shadow:0 -1px #3e1813,0 1px #bc7956}
-.envelope-hint{position:absolute;bottom:60px;left:0;right:0;font:9px 'Courier New',monospace;letter-spacing:3px;color:#4c3c28}
-#letter-paper{position:relative;padding:35px 43px 28px;transform:rotate(-1deg);background:radial-gradient(ellipse at 95% 10%,#9c76313d,transparent 28%),radial-gradient(ellipse at 2% 90%,#8e5b2940,transparent 32%),linear-gradient(0deg,transparent 48.9%,#9f87632e 49.8%,#f4e5c56b 50.3%,transparent 51%),#dfcea7;color:#3b3326;box-shadow:0 25px 80px #000a,inset 0 0 55px #90663530;border:1px solid #b6a078;animation:unfold-letter .75s ease both}
-#letter-paper::before{content:'';position:absolute;inset:7px;border:1px solid #b69b743d;pointer-events:none}
-.letter-date{text-align:right;color:#786442;font:11px Georgia,serif;letter-spacing:.5px}
-#letter-paper h2{font:italic 27px Georgia,serif;margin:24px 0 16px;font-weight:400}
-#letter-copy p{font:16px/1.6 Georgia,'Times New Roman',serif;margin:0 0 15px;color:#413524}
-.letter-signature{font:italic 32px 'Palatino Linotype',Georgia,serif;margin:12px 0 23px;text-align:right;transform:rotate(-6deg);color:#534129}
-#keep-letter{position:relative;display:block;width:100%;background:#4b4937;color:#e9dcc1;border:1px solid #696049;text-align:center;letter-spacing:1px;font-size:11px;padding:14px}
-#keep-letter:hover,#keep-letter:focus-visible{background:#33392b;outline:2px solid #a69470;outline-offset:3px}
-@keyframes unfold-letter{from{opacity:0;transform:translateY(40px) rotate(-4deg) rotateX(20deg)}to{opacity:1;transform:translateY(0) rotate(-1deg) rotateX(0)}}
-@media(max-height:760px){#letter-intro{gap:13px;padding:18px}.letter-context{font-size:11px}.letter-context span{margin-bottom:5px}#letter-paper{padding:23px 34px 22px}#letter-paper h2{margin:17px 0 12px;font-size:24px}#letter-copy p{font-size:15px;line-height:1.45;margin-bottom:12px}.letter-signature{font-size:28px;margin:5px 0 17px}}
-@media(max-width:480px){.sealed-envelope{height:250px}#letter-paper{padding:25px}#letter-copy p{font-size:14px}.letter-context{max-width:340px}}
-@media(prefers-reduced-motion:reduce){#letter-paper{animation:none}.sealed-envelope{transition:none}}
-#dialog.letter-dialog{background:#090e0be8}
-#dialog.letter-dialog .panel{background:radial-gradient(ellipse at 95% 10%,#9c76313d,transparent 32%),linear-gradient(0deg,transparent 49%,#9f876327 50%,transparent 51%),#dfcea7;color:#423626;border:1px solid #b6a078;box-shadow:0 25px 80px #000a,inset 0 0 55px #90663530;transform:rotate(-.5deg);padding:38px 44px}
-#dialog.letter-dialog h2{color:#443728;font:italic 29px/1.2 Georgia,serif;letter-spacing:-.4px}
-#dialog.letter-dialog .eyebrow{color:#796548;font-size:9px;letter-spacing:1.5px}
-#dialog.letter-dialog .paper-message p{font:17px/1.65 Georgia,serif;color:#443728}
-#dialog.letter-dialog #close-dialog{background:#4b4937;color:#e9dcc1;border:1px solid #696049;text-align:center}
+#letter-intro {
+  z-index: 20;
+  flex-direction: column;
+  justify-content: center;
+  gap: 24px;
+  background: radial-gradient(ellipse at 50% 48%, #372a1ce8, #060b0bf7 75%);
+  backdrop-filter: blur(9px);
+  overflow: auto;
+  padding: 32px 20px;
+}
+.letter-context {
+  color: #c1b6a3;
+  text-align: center;
+  font:
+    13px/1.7 'Courier New',
+    monospace;
+  max-width: 470px;
+  margin: 0;
+}
+.letter-context span {
+  display: block;
+  text-transform: uppercase;
+  letter-spacing: 3px;
+  font-size: 9px;
+  color: #9f8b6c;
+  margin-bottom: 12px;
+}
+#envelope-scene {
+  position: relative;
+  width: min(500px, 90vw);
+  perspective: 1200px;
+  flex-shrink: 0;
+}
+.sealed-envelope {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 300px;
+  padding: 0;
+  border: 1px solid #958064;
+  border-radius: 3px;
+  background: linear-gradient(150deg, #c2ae89, #aa916b);
+  box-shadow:
+    0 25px 70px #000b,
+    inset 0 0 55px #5e381842;
+  transform: rotate(-3deg);
+  color: #40321f;
+  text-align: center;
+  isolation: isolate;
+  transition:
+    transform 0.3s,
+    filter 0.3s;
+}
+.sealed-envelope::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(0 0, 100% 0, 50% 68%);
+  background: linear-gradient(#d1bc96, #b59b75);
+  filter: drop-shadow(0 3px 2px #42250c88);
+  border-top: 1px solid #e5d1b0;
+  z-index: -1;
+}
+.sealed-envelope::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  clip-path: polygon(0 100%, 0 17%, 50% 69%, 100% 17%, 100% 100%);
+  background: linear-gradient(35deg, #b69a71, #c8b18a);
+  box-shadow: inset 0 -25px 50px #80552d33;
+  z-index: -1;
+}
+.sealed-envelope:hover,
+.sealed-envelope:focus-visible {
+  background: linear-gradient(150deg, #c2ae89, #aa916b);
+  border-color: #d2be99;
+  transform: rotate(-1deg) translateY(-5px);
+  filter: brightness(1.07);
+}
+.envelope-to {
+  position: absolute;
+  top: 36px;
+  left: 32px;
+  font:
+    italic 24px Georgia,
+    serif;
+  transform: rotate(-4deg);
+}
+.envelope-from {
+  position: absolute;
+  bottom: 24px;
+  right: 27px;
+  font:
+    italic 17px Georgia,
+    serif;
+}
+.wax-seal {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 62px;
+  border-radius: 46% 54% 49% 43%;
+  color: #b47b60;
+  background: radial-gradient(circle at 32% 28%, #8c4636, #4a211c);
+  box-shadow:
+    inset 0 0 0 4px #793e30,
+    inset 0 0 0 6px #4a211c,
+    2px 5px 7px #40251480;
+  font:
+    italic 34px Georgia,
+    serif;
+  text-shadow:
+    0 -1px #3e1813,
+    0 1px #bc7956;
+}
+.envelope-hint {
+  position: absolute;
+  bottom: 60px;
+  left: 0;
+  right: 0;
+  font:
+    9px 'Courier New',
+    monospace;
+  letter-spacing: 3px;
+  color: #4c3c28;
+}
+#letter-paper {
+  position: relative;
+  padding: 35px 43px 28px;
+  transform: rotate(-1deg);
+  background:
+    radial-gradient(ellipse at 95% 10%, #9c76313d, transparent 28%),
+    radial-gradient(ellipse at 2% 90%, #8e5b2940, transparent 32%),
+    linear-gradient(0deg, transparent 48.9%, #9f87632e 49.8%, #f4e5c56b 50.3%, transparent 51%),
+    #dfcea7;
+  color: #3b3326;
+  box-shadow:
+    0 25px 80px #000a,
+    inset 0 0 55px #90663530;
+  border: 1px solid #b6a078;
+  animation: unfold-letter 0.75s ease both;
+}
+#letter-paper::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border: 1px solid #b69b743d;
+  pointer-events: none;
+}
+.letter-date {
+  text-align: right;
+  color: #786442;
+  font:
+    11px Georgia,
+    serif;
+  letter-spacing: 0.5px;
+}
+#letter-paper h2 {
+  font:
+    italic 27px Georgia,
+    serif;
+  margin: 24px 0 16px;
+  font-weight: 400;
+}
+#letter-copy p {
+  font:
+    16px/1.6 Georgia,
+    'Times New Roman',
+    serif;
+  margin: 0 0 15px;
+  color: #413524;
+}
+.letter-signature {
+  font:
+    italic 32px 'Palatino Linotype',
+    Georgia,
+    serif;
+  margin: 12px 0 23px;
+  text-align: right;
+  transform: rotate(-6deg);
+  color: #534129;
+}
+#keep-letter {
+  position: relative;
+  display: block;
+  width: 100%;
+  background: #4b4937;
+  color: #e9dcc1;
+  border: 1px solid #696049;
+  text-align: center;
+  letter-spacing: 1px;
+  font-size: 11px;
+  padding: 14px;
+}
+#keep-letter:hover,
+#keep-letter:focus-visible {
+  background: #33392b;
+  outline: 2px solid #a69470;
+  outline-offset: 3px;
+}
+@keyframes unfold-letter {
+  from {
+    opacity: 0;
+    transform: translateY(40px) rotate(-4deg) rotateX(20deg);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) rotate(-1deg) rotateX(0);
+  }
+}
+@media (max-height: 760px) {
+  #letter-intro {
+    gap: 13px;
+    padding: 18px;
+  }
+  .letter-context {
+    font-size: 11px;
+  }
+  .letter-context span {
+    margin-bottom: 5px;
+  }
+  #letter-paper {
+    padding: 23px 34px 22px;
+  }
+  #letter-paper h2 {
+    margin: 17px 0 12px;
+    font-size: 24px;
+  }
+  #letter-copy p {
+    font-size: 15px;
+    line-height: 1.45;
+    margin-bottom: 12px;
+  }
+  .letter-signature {
+    font-size: 28px;
+    margin: 5px 0 17px;
+  }
+}
+@media (max-width: 480px) {
+  .sealed-envelope {
+    height: 250px;
+  }
+  #letter-paper {
+    padding: 25px;
+  }
+  #letter-copy p {
+    font-size: 14px;
+  }
+  .letter-context {
+    max-width: 340px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  #letter-paper {
+    animation: none;
+  }
+  .sealed-envelope {
+    transition: none;
+  }
+}
+#dialog.letter-dialog {
+  background: #090e0be8;
+}
+#dialog.letter-dialog .panel {
+  background:
+    radial-gradient(ellipse at 95% 10%, #9c76313d, transparent 32%),
+    linear-gradient(0deg, transparent 49%, #9f876327 50%, transparent 51%), #dfcea7;
+  color: #423626;
+  border: 1px solid #b6a078;
+  box-shadow:
+    0 25px 80px #000a,
+    inset 0 0 55px #90663530;
+  transform: rotate(-0.5deg);
+  padding: 38px 44px;
+}
+#dialog.letter-dialog h2 {
+  color: #443728;
+  font:
+    italic 29px/1.2 Georgia,
+    serif;
+  letter-spacing: -0.4px;
+}
+#dialog.letter-dialog .eyebrow {
+  color: #796548;
+  font-size: 9px;
+  letter-spacing: 1.5px;
+}
+#dialog.letter-dialog .paper-message p {
+  font:
+    17px/1.65 Georgia,
+    serif;
+  color: #443728;
+}
+#dialog.letter-dialog #close-dialog {
+  background: #4b4937;
+  color: #e9dcc1;
+  border: 1px solid #696049;
+  text-align: center;
+}

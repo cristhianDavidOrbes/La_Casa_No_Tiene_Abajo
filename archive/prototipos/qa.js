@@ -1,4 +1,5 @@
-import {puzzleAnswer} from './orientation-puzzle.js';
+// Archivo histórico, no se importa ni se ejecuta en el juego actual.
+import {puzzleAnswer} from '../../src/orientation-puzzle.js';
 import {createPuzzle} from './orientation-puzzle.js';
 import {tickFlash} from './flash.js';
 import {fresh} from './story.js';

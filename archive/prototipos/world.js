@@ -1,3 +1,4 @@
+// Escenario antiguo, archivado para no confundirlo con src/house.js.
 import * as T from 'three';
 import {GLTFLoader} from 'three/addons/loaders/GLTFLoader.js';
 

@@ -1,1 +1,21 @@
-{"name":"la-casa-no-tiene-abajo","version":"1.0.0","private":true,"type":"module","scripts":{"dev":"vite --host 127.0.0.1 --port 5180","build":"vite build","preview":"vite preview --host 127.0.0.1 --port 5180","test":"node --test tests/*.test.js","start":"node server.mjs"},"dependencies":{"cannon-es":"^0.20.0","three":"^0.186.0"},"devDependencies":{"vite":"^8.0.0"}}
+{
+  "name": "la-casa-no-tiene-abajo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5180",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1 --port 5180",
+    "test": "node --test tests/*.test.js",
+    "start": "node server.mjs"
+  },
+  "dependencies": {
+    "cannon-es": "^0.20.0",
+    "three": "^0.186.0"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2",
+    "vite": "^8.0.0"
+  }
+}
