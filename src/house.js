@@ -385,8 +385,9 @@ function lamp(room) {
   const shadow = new THREE.SpotLight(color, room.id === 0 ? 95 : 85, 16, 1.25, 0.8, 2);
   shadow.position.set(0, room.h - 0.62, 0);
   shadow.target.position.set(0, 0, 0);
-  shadow.castShadow = true;
-  shadow.shadow.mapSize.set(1024, 1024);
+  // Solo sirve de referencia; RoomRendering reutiliza una única luz con sombra.
+  shadow.castShadow = false;
+  shadow.shadow.mapSize.set(512, 512);
   shadow.shadow.bias = -0.0003;
   shadow.shadow.normalBias = 0.03;
   room.group.add(shadow, shadow.target);

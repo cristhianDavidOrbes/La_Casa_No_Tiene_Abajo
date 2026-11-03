@@ -16,7 +16,8 @@ const DURATION = 34;
 function copyMaterials(root) {
   root.traverse((o) => {
     if (!o.isMesh) return;
-    o.castShadow = o.receiveShadow = true;
+    o.castShadow = false;
+    o.receiveShadow = true;
     const copy = (m) => {
       const c = m.clone();
       if ('roughness' in c) c.roughness = Math.max(0.68, c.roughness);

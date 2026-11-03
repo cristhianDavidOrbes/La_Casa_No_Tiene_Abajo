@@ -76,6 +76,8 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.localClippingEnabled = true;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
+// Actualizar la única sombra hasta 30 veces/s; el resto del juego sigue a su ritmo normal.
+renderer.shadowMap.autoUpdate = false;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -86,6 +88,7 @@ scene.add(ambient);
 // Keep the spot in the light set at zero intensity between pulses. Toggling
 // visibility would force every material to compile a new shader during play.
 const flashlight = new THREE.SpotLight('#eaf7db', 0, 28, 0.72, 0.65, 1.2);
+flashlight.castShadow = false;
 scene.add(flashlight, flashlight.target);
 const audio = new Soundscape();
 let broadcasts = {};
@@ -2273,7 +2276,9 @@ async function prewarmRendering() {
 }
 
 let last = performance.now(),
-  frameTime = 0;
+  frameTime = 0,
+  nextShadowUpdate = 0,
+  lastShadowRoom = -1;
 // 5. Cada fotograma: entrada, física Cannon, sincronización, efectos y render.
 function frame(now) {
   requestAnimationFrame(frame);
@@ -2282,6 +2287,12 @@ function frame(now) {
   last = now;
   frameTime += dt;
   if (!ready || warming) return;
+  const shadowRoom = transition?.field ?? state.room;
+  if (now >= nextShadowUpdate || shadowRoom !== lastShadowRoom) {
+    renderer.shadowMap.needsUpdate = true;
+    nextShadowUpdate = now + 1000 / 30;
+    lastShadowRoom = shadowRoom;
+  }
   if (mode === 'cinematic' || mode === 'ending') {
     if (mode === 'cinematic') {
       endingSequence.update(dt);
