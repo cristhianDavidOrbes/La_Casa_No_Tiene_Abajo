@@ -1,3 +1,4 @@
+// Semanas 2 y 9: datos de los cinco cuartos y sus accesos, sin cargar modelos de nuevo.
 import { Quaternion, Vector3 } from 'three';
 export const LEVELS = [
   {

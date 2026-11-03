@@ -1,6 +1,6 @@
 import './style.css';
 import './letter.css';
-import * as T from 'three';
+import * as THREE from 'three';
 import { loadEnvironment } from './environment.js';
 import { loadBroadcasts, prepareVideo } from './media-loading.js';
 import { loadAssets, createWorld, updateWorld, applyPuzzle, applyLockerLayout } from './house.js';
@@ -54,16 +54,16 @@ import { chairIcon, mountInstrumentArt } from './ui-art.js';
 const $ = (id) => document.getElementById(id),
   show = (id, on = true) => $(id).classList.toggle('hidden', !on);
 mountInstrumentArt();
-// 1. Semanas 1 y 2: escena, cámara, materiales y renderizador (T es Three.js).
-const scene = new T.Scene();
-scene.background = new T.Color('#070c0b');
-scene.fog = new T.FogExp2('#0b1210', 0.022);
-const normalFogColor = new T.Color('#0b1210'),
-  blackFogColor = new T.Color('#000000');
-const camera = new T.PerspectiveCamera(68, innerWidth / innerHeight, 0.045, 90);
+// 1. Semanas 1 y 2: escena, cámara, materiales y renderizador.
+const scene = new THREE.Scene();
+scene.background = new THREE.Color('#070c0b');
+scene.fog = new THREE.FogExp2('#0b1210', 0.022);
+const normalFogColor = new THREE.Color('#0b1210'),
+  blackFogColor = new THREE.Color('#000000');
+const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.045, 90);
 let renderer;
 try {
-  renderer = new T.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 } catch (e) {
   $('load-status').innerHTML =
     '<span class="error">WebGL 2 no está disponible. Abre el juego en Chrome o Edge con aceleración gráfica.</span>';
@@ -74,17 +74,17 @@ renderer.setPixelRatio(renderBudget.ratio);
 renderer.setSize(innerWidth, innerHeight);
 renderer.localClippingEnabled = true;
 renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = T.PCFShadowMap;
-renderer.toneMapping = T.ACESFilmicToneMapping;
+renderer.shadowMap.type = THREE.PCFShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
-renderer.outputColorSpace = T.SRGBColorSpace;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
 $('game').appendChild(renderer.domElement);
 // 2. Semanas 4 y 7: relleno HDR y luces locales con una sombra compartida.
-const ambient = new T.AmbientLight('#c1d6cd', 0.18);
+const ambient = new THREE.AmbientLight('#c1d6cd', 0.18);
 scene.add(ambient);
 // Keep the spot in the light set at zero intensity between pulses. Toggling
 // visibility would force every material to compile a new shader during play.
-const flashlight = new T.SpotLight('#eaf7db', 0, 28, 0.72, 0.65, 1.2);
+const flashlight = new THREE.SpotLight('#eaf7db', 0, 28, 0.72, 0.65, 1.2);
 scene.add(flashlight, flashlight.target);
 const audio = new Soundscape();
 let broadcasts = {};
@@ -94,8 +94,8 @@ broadcastVideo.loop = false;
 broadcastVideo.preload = 'auto';
 broadcastVideo.muted = true;
 // Semana 3: Three.js actualiza el vídeo directamente sobre el cristal del TV.
-const broadcastTexture = new T.VideoTexture(broadcastVideo);
-broadcastTexture.colorSpace = T.SRGBColorSpace;
+const broadcastTexture = new THREE.VideoTexture(broadcastVideo);
+broadcastTexture.colorSpace = THREE.SRGBColorSpace;
 let mediaRunning = false;
 let collisionTree,
   playerActor = null;
@@ -110,7 +110,7 @@ let world,
   ready = false,
   pausedLock = false,
   dragging = false;
-let player = new T.Vector3(0, 0, 4.7),
+let player = new THREE.Vector3(0, 0, 4.7),
   yaw = 0,
   pitch = 0,
   vy = 0,
@@ -160,11 +160,11 @@ let rewindProgress = 0,
 let settingsReturn = 'title';
 const keys = new Set(),
   events = new Set(),
-  rayDirection = new T.Vector3(),
-  tmp = new T.Vector3(),
-  qLook = new T.Quaternion();
-const cctv = new T.PerspectiveCamera(62, 4 / 3, 0.05, 40),
-  cctvTarget = new T.WebGLRenderTarget(256, 192),
+  rayDirection = new THREE.Vector3(),
+  tmp = new THREE.Vector3(),
+  qLook = new THREE.Quaternion();
+const cctv = new THREE.PerspectiveCamera(62, 4 / 3, 0.05, 40),
+  cctvTarget = new THREE.WebGLRenderTarget(256, 192),
   cctvBuffer = new Uint8Array(256 * 192 * 4),
   cctvCanvas = document.createElement('canvas');
 cctvCanvas.width = 256;
@@ -202,7 +202,7 @@ function titleSignal(time) {
   lastBroadcastChannel = -2;
   const tv = world.rooms[0].tv,
     ctx = tv.ctx;
-  tv.screen.map = tv.texture;
+  setTVTexture(tv.texture);
   ctx.fillStyle = '#07130e';
   ctx.fillRect(0, 0, 768, 576);
   ctx.globalAlpha = 0.55;
@@ -679,7 +679,7 @@ function buildRadioScale() {
 function radioFrequency() {
   const low = Math.min(3, Math.floor(tune)),
     fraction = tune - low;
-  return T.MathUtils.lerp(frequencyOptions[low], frequencyOptions[low + 1], fraction);
+  return THREE.MathUtils.lerp(frequencyOptions[low], frequencyOptions[low + 1], fraction);
 }
 function updateRadioKnob() {
   const freq = radioFrequency(),
@@ -702,7 +702,7 @@ function updateRadioKnob() {
   $('radio-status').classList.toggle('locked', synced);
 }
 function changeTune(n) {
-  tune = T.MathUtils.clamp(tune + n, 0, 4);
+  tune = THREE.MathUtils.clamp(tune + n, 0, 4);
   updateRadioKnob();
   if (performance.now() - rewindTick > 110) {
     audio.tone(125 + radioFrequency() * 2, 0.045, 0.009);
@@ -800,7 +800,7 @@ function circuitDialog() {
             'NO COINCIDE. Observa las sillas y sigue el orden de habitaciones.';
           $('circuit-feedback').classList.add('error');
           renderSlots();
-          audio.knock(world.worldPoint(2, new T.Vector3(-2.7, 1.4, -3.75)));
+          audio.knock(world.worldPoint(2, new THREE.Vector3(-2.7, 1.4, -3.75)));
         }
       } else {
         $('circuit-feedback').textContent = nextPrompt();
@@ -834,7 +834,12 @@ function exitDialog() {
   }
   const door = world.entryDoor;
   door.setOpen(!door.target, player.z > 6);
-  audio.play('impactWood_heavy_000', 0.15, 0.62, world.worldPoint(0, new T.Vector3(-3.2, 1.2, 6)));
+  audio.play(
+    'impactWood_heavy_000',
+    0.15,
+    0.62,
+    world.worldPoint(0, new THREE.Vector3(-3.2, 1.2, 6))
+  );
   if (door.target)
     think(
       state.tape
@@ -1127,8 +1132,8 @@ function targetInteraction() {
     return;
   }
   const room = world.rooms[state.room];
-  const localEye = player.clone().add(new T.Vector3(0, EYE_HEIGHT, 0));
-  const forward = new T.Vector3(0, 0, -1).applyEuler(new T.Euler(pitch, yaw, 0, 'YXZ'));
+  const localEye = player.clone().add(new THREE.Vector3(0, EYE_HEIGHT, 0));
+  const forward = new THREE.Vector3(0, 0, -1).applyEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
   let score = Infinity;
   for (const item of room.interactions) {
     if (
@@ -1174,7 +1179,7 @@ function updateFall(dt) {
   grounded = body.grounded;
   $('gravity').textContent = 'GRAVEDAD / ' + world.rooms[body.field].name;
   camera.position.copy(gravityEye(body));
-  qLook.setFromEuler(new T.Euler(pitch, yaw, 0, 'YXZ'));
+  qLook.setFromEuler(new THREE.Euler(pitch, yaw, 0, 'YXZ'));
   camera.quaternion.copy(body.frame).multiply(qLook);
   const arrival = gravityArrival(body);
   if (arrival) {
@@ -1183,7 +1188,7 @@ function updateFall(dt) {
     playerActor.room = arrival.room;
     playerActor.transition = null;
     player.copy(localPosition(arrival.room, collisionTree.feet(playerActor)));
-    vy = body.velocity.dot(new T.Vector3(0, 1, 0).applyQuaternion(roomQuaternion(state.room)));
+    vy = body.velocity.dot(new THREE.Vector3(0, 1, 0).applyQuaternion(roomQuaternion(state.room)));
     transition = null;
     roomTime = 0;
     if (!state.visited.includes(state.room)) state.visited.push(state.room);
@@ -1215,7 +1220,7 @@ function movementInput() {
 }
 function updateCamera(dt) {
   const fov = hiddenLocker ? 80 : seated ? 35 : 68;
-  camera.fov = dt > 0 ? T.MathUtils.damp(camera.fov, fov, 5, dt) : fov;
+  camera.fov = dt > 0 ? THREE.MathUtils.damp(camera.fov, fov, 5, dt) : fov;
   camera.updateProjectionMatrix();
   $('crosshair').style.display = seated || hiddenLocker ? 'none' : '';
   const room = world.rooms[state.room];
@@ -1225,10 +1230,15 @@ function updateCamera(dt) {
       : Math.sin(walkPhase) * 0.022 * Math.min(stepDistance + 1, 1);
   const eye = hiddenLocker
     ? hiddenLocker.eye.clone()
-    : player.clone().add(new T.Vector3(0, EYE_HEIGHT + bob, 0));
+    : player.clone().add(new THREE.Vector3(0, EYE_HEIGHT + bob, 0));
   camera.position.copy(room.group.localToWorld(eye));
   qLook.setFromEuler(
-    new T.Euler(pitch, yaw, comfort || hiddenLocker ? 0 : Math.sin(walkPhase * 0.5) * 0.0015, 'YXZ')
+    new THREE.Euler(
+      pitch,
+      yaw,
+      comfort || hiddenLocker ? 0 : Math.sin(walkPhase * 0.5) * 0.0015,
+      'YXZ'
+    )
   );
   camera.quaternion.copy(room.group.quaternion).multiply(qLook);
 }
@@ -1249,7 +1259,7 @@ function updatePlayer(dt) {
   const previous = player.clone();
   player.copy(localPosition(state.room, collisionTree.feet(playerActor)));
   grounded = playerActor.grounded;
-  vy = new T.Vector3(
+  vy = new THREE.Vector3(
     playerActor.body.velocity.x,
     playerActor.body.velocity.y,
     playerActor.body.velocity.z
@@ -1273,7 +1283,7 @@ function updatePlayer(dt) {
     enemy.delay <= 0 &&
     enemy.stunRemaining <= 0 &&
     (state.room === enemy.room || enemyDist < 8.5);
-  const panicT = isNearEnemy ? T.MathUtils.clamp((8.5 - enemyDist) / 6, 0, 1) : 0;
+  const panicT = isNearEnemy ? THREE.MathUtils.clamp((8.5 - enemyDist) / 6, 0, 1) : 0;
   const panicMultiplier = 1 + 2.2 * panicT;
   const wantsRun = keys.has('ShiftLeft') || keys.has('ShiftRight'),
     canRun = wantsRun && length > 0.01 && !staminaExhausted && stamina > 0,
@@ -1334,9 +1344,11 @@ function updatePlayer(dt) {
   }
   collisionTree.configure(playerActor, {
     frame: roomQuaternion(state.room),
-    desired: new T.Vector3(dx / Math.max(dt, 0.0001), 0, dz / Math.max(dt, 0.0001)).applyQuaternion(
-      roomQuaternion(state.room)
-    )
+    desired: new THREE.Vector3(
+      dx / Math.max(dt, 0.0001),
+      0,
+      dz / Math.max(dt, 0.0001)
+    ).applyQuaternion(roomQuaternion(state.room))
   });
   const moved = Math.hypot(player.x - previous.x, player.z - previous.z);
   if (grounded && moved > 0.0001) {
@@ -1421,7 +1433,7 @@ function updateEncounters(dt) {
   if (event.started) {
     audio.haunt(
       ['knock', 'drag', 'whisper', 'whisper'][event.room],
-      world.worldPoint(event.room, new T.Vector3(-3.6, 2, 2.7))
+      world.worldPoint(event.room, new THREE.Vector3(-3.6, 2, 2.7))
     );
     subtitle(
       [
@@ -1439,10 +1451,15 @@ function updateEncounters(dt) {
       'footstep_wood_002',
       0.13,
       0.48,
-      world.worldPoint(event.room, new T.Vector3(2 - t * 0.6, 3.8, 2.8))
+      world.worldPoint(event.room, new THREE.Vector3(2 - t * 0.6, 3.8, 2.8))
     );
   if (event.kind === 'figure' && Math.floor(t * 5) !== Math.floor((t - dt) * 5))
-    audio.tone(77 + t * 6, 0.17, 0.018, world.worldPoint(event.room, new T.Vector3(-3.6, 2, 2.7)));
+    audio.tone(
+      77 + t * 6,
+      0.17,
+      0.018,
+      world.worldPoint(event.room, new THREE.Vector3(-3.6, 2, 2.7))
+    );
 }
 function updateWatcherHead(dt) {
   const watcher = world.watcher;
@@ -1455,14 +1472,14 @@ function updateWatcherHead(dt) {
     watcher.visible = false;
     return;
   }
-  const oldUp = new T.Vector3(0, 1, 0).applyQuaternion(roomQuaternion(site.room));
+  const oldUp = new THREE.Vector3(0, 1, 0).applyQuaternion(roomQuaternion(site.room));
   world.watcherClipPlane.setFromNormalAndCoplanarPoint(
     oldUp,
-    world.worldPoint(site.room, new T.Vector3(0, 0, 0))
+    world.worldPoint(site.room, new THREE.Vector3(0, 0, 0))
   );
-  const hide = T.MathUtils.clamp(watcherHead.hideAge / WATCHER_HIDE_SECONDS, 0, 1);
+  const hide = THREE.MathUtils.clamp(watcherHead.hideAge / WATCHER_HIDE_SECONDS, 0, 1);
   const retreat = watcherRetreatHead(site, hide);
-  const point = world.worldPoint(site.room, new T.Vector3(site.x, site.y - 2.1, site.z));
+  const point = world.worldPoint(site.room, new THREE.Vector3(site.x, site.y - 2.1, site.z));
   watcher.position.copy(point);
   // The head belongs to the old room's floor edge, not the shaft between the
   // gravity frames. Keep its vertical axis in that room's orientation.
@@ -1471,16 +1488,22 @@ function updateWatcherHead(dt) {
   watcher.quaternion
     .copy(between)
     .multiply(
-      new T.Quaternion().setFromAxisAngle(new T.Vector3(0, 1, 0), Math.atan2(toward.x, toward.z))
+      new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(0, 1, 0),
+        Math.atan2(toward.x, toward.z)
+      )
     );
   watcher.visible = true;
   world.watcherMotion.update(dt, { time: state.elapsed, bipedal: 1, lookTarget: camera.position });
   watcher.updateWorldMatrix(true, true);
-  const desiredHead = world.worldPoint(site.room, new T.Vector3(retreat.x, retreat.y, retreat.z));
-  let head = world.watcherHeadBone?.getWorldPosition(new T.Vector3()) || point.clone();
+  const desiredHead = world.worldPoint(
+    site.room,
+    new THREE.Vector3(retreat.x, retreat.y, retreat.z)
+  );
+  let head = world.watcherHeadBone?.getWorldPosition(new THREE.Vector3()) || point.clone();
   watcher.position.add(desiredHead.clone().sub(head));
   watcher.updateWorldMatrix(true, true);
-  head = world.watcherHeadBone?.getWorldPosition(new T.Vector3()) || desiredHead;
+  head = world.watcherHeadBone?.getWorldPosition(new THREE.Vector3()) || desiredHead;
   const bones = world.watcherMotion.bones;
   const observed =
     !watcherHead.hiding &&
@@ -1489,8 +1512,8 @@ function updateWatcherHead(dt) {
       [
         head.clone().addScaledVector(oldUp, 0.28),
         head,
-        bones.LeftArm.getWorldPosition(new T.Vector3()),
-        bones.RightArm.getWorldPosition(new T.Vector3())
+        bones.LeftArm.getWorldPosition(new THREE.Vector3()),
+        bones.RightArm.getWorldPosition(new THREE.Vector3())
       ],
       collisionTree
     );
@@ -1510,7 +1533,7 @@ function updateRearHaunt(dt) {
     return;
   }
   if (!rearHaunt && shouldStartRearHaunt(state, roomTime)) {
-    const backward = new T.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
+    const backward = new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw));
     rearHaunt = new RearApparition(player, backward, world.rooms[state.room]);
     world.creatureMotion.reset();
     world.creatureMotion.bipedal = 1;
@@ -1523,7 +1546,7 @@ function updateRearHaunt(dt) {
   }
   const room = world.rooms[state.room];
   if (rearHaunt.room !== state.room)
-    rearHaunt.relocate(player, new T.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), room);
+    rearHaunt.relocate(player, new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), room);
   const local = rearHaunt.position(player, room, dt),
     position = world.worldPoint(state.room, local);
   room.hauntPower = comfort ? 0.7 : 0.32 + 0.68 * Math.abs(Math.sin(rearHaunt.age * 19));
@@ -1531,7 +1554,7 @@ function updateRearHaunt(dt) {
   world.creature.position
     .copy(position)
     .addScaledVector(
-      new T.Vector3(1, 0, 0).applyQuaternion(roomQuaternion(state.room)),
+      new THREE.Vector3(1, 0, 0).applyQuaternion(roomQuaternion(state.room)),
       Math.sin(rearHaunt.age * 19) * 0.1 + Math.sin(rearHaunt.age * 41) * 0.045
     );
   const toward = camera.position
@@ -1541,8 +1564,8 @@ function updateRearHaunt(dt) {
   world.creature.quaternion
     .copy(roomQuaternion(state.room))
     .multiply(
-      new T.Quaternion().setFromAxisAngle(
-        new T.Vector3(0, 1, 0),
+      new THREE.Quaternion().setFromAxisAngle(
+        new THREE.Vector3(0, 1, 0),
         Math.atan2(toward.x, toward.z) + Math.sin(rearHaunt.age * 16) * 0.11
       )
     );
@@ -1561,7 +1584,7 @@ function updateRearHaunt(dt) {
     isCreatureObserved(camera, world.creature, collisionTree, { verticalPadding: 1.45 })
   );
   if (event === 'spotted') {
-    audio.reveal(world.creatureMotion.bones.Head.getWorldPosition(new T.Vector3()));
+    audio.reveal(world.creatureMotion.bones.Head.getWorldPosition(new THREE.Vector3()));
     subtitle('«Estaba justo detrás de mí.»', 5);
   }
   if (rearHaunt.spotted) {
@@ -1619,13 +1642,15 @@ function updateHorror(dt) {
   }
   const center = enemy.position
       .clone()
-      .addScaledVector(new T.Vector3(0, 1, 0).applyQuaternion(enemy.rotation), 0.65),
+      .addScaledVector(new THREE.Vector3(0, 1, 0).applyQuaternion(enemy.rotation), 0.65),
     direction = center.clone().sub(camera.position),
     dist = direction.length();
   camera.getWorldDirection(rayDirection);
   const needsSight = flash.remaining > 0 || dist < 1.3;
   const hit = needsSight
-    ? collisionTree?.rayIntersect(new T.Ray(camera.position.clone(), direction.clone().normalize()))
+    ? collisionTree?.rayIntersect(
+        new THREE.Ray(camera.position.clone(), direction.clone().normalize())
+      )
     : null;
   const clear = !hit || hit.distance > dist - 0.25,
     illuminated =
@@ -1641,7 +1666,7 @@ function updateHorror(dt) {
         : transition.field
       : state.room);
   const huntTarget = hiddenLocker
-    ? world.worldPoint(targetRoom, new T.Vector3(0, 0, 0))
+    ? world.worldPoint(targetRoom, new THREE.Vector3(0, 0, 0))
     : camera.position;
   enemy.update(dt, {
     rooms: world.rooms,
@@ -1693,13 +1718,13 @@ function caught() {
   show('remote', false);
   show('interact', false);
   show('capture');
-  audio.jumpscare(world.creatureMotion.bones.Head.getWorldPosition(new T.Vector3()));
+  audio.jumpscare(world.creatureMotion.bones.Head.getWorldPosition(new THREE.Vector3()));
   world.creatureMotion.reset();
 }
 function updateCapture(dt) {
   captureAge += dt;
-  const up = new T.Vector3(0, 1, 0).applyQuaternion(camera.quaternion),
-    forward = camera.getWorldDirection(new T.Vector3());
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion),
+    forward = camera.getWorldDirection(new THREE.Vector3());
   if (!comfort) {
     const shake = Math.max(0, 1 - captureAge / CAPTURE_DURATION) * 0.032;
     camera.position.x += (Math.random() - 0.5) * shake;
@@ -1717,7 +1742,7 @@ function updateCapture(dt) {
     jumpscare: captureAge + 0.1,
     bipedal: 1
   });
-  const head = world.creatureMotion.bones.Head.getWorldPosition(new T.Vector3()),
+  const head = world.creatureMotion.bones.Head.getWorldPosition(new THREE.Vector3()),
     desired = camera.position
       .clone()
       .addScaledVector(forward, captureDistance(captureAge))
@@ -1817,6 +1842,15 @@ function securityFrame(time) {
       cctvPending = false;
     });
 }
+function setTVTexture(texture) {
+  const screen = world.rooms[0].tv.screen;
+  // Cambiar entre imagen y vídeo utiliza programas preparados en la carga inicial.
+  if (Boolean(screen.map?.isVideoTexture) !== Boolean(texture.isVideoTexture)) {
+    screen.needsUpdate = true;
+  }
+  screen.map = texture;
+}
+
 function broadcast(time) {
   const ch = state.channel;
   if (ch === 0 && lastBroadcastChannel === 0) return;
@@ -1828,7 +1862,7 @@ function broadcast(time) {
     w = 768,
     h = 576;
   const liveVideo = ch > 0 && broadcastVideo.readyState >= 2 && !(ch === 3 && !state.inserted);
-  tv.screen.map = liveVideo ? broadcastTexture : tv.texture;
+  setTVTexture(liveVideo ? broadcastTexture : tv.texture);
   tv.light.intensity = ch ? 7 : 0;
   if (liveVideo) return;
   ctx.fillStyle = ch ? '#14201b' : '#030606';
@@ -2006,7 +2040,7 @@ document.addEventListener('mousemove', (e) => {
   if (mode !== 'playing' || seated) return;
   if (document.pointerLockElement === renderer.domElement || dragging) {
     yaw -= e.movementX * 0.0021 * sensitivity;
-    pitch = T.MathUtils.clamp(
+    pitch = THREE.MathUtils.clamp(
       pitch - e.movementY * 0.0021 * sensitivity,
       hiddenLocker ? -0.42 : -1.42,
       hiddenLocker ? 0.42 : 1.42
@@ -2014,8 +2048,9 @@ document.addEventListener('mousemove', (e) => {
     if (hiddenLocker)
       yaw =
         hiddenLocker.viewYaw +
-        T.MathUtils.clamp(
-          T.MathUtils.euclideanModulo(yaw - hiddenLocker.viewYaw + Math.PI, Math.PI * 2) - Math.PI,
+        THREE.MathUtils.clamp(
+          THREE.MathUtils.euclideanModulo(yaw - hiddenLocker.viewYaw + Math.PI, Math.PI * 2) -
+            Math.PI,
           -0.6,
           0.6
         );
@@ -2133,7 +2168,7 @@ async function prewarmRendering() {
   // Upload every reused texture and compile each room's light arrangement before
   // gameplay. The flash uses the same shader because its light stays present.
   warming = true;
-  const smallTarget = new T.WebGLRenderTarget(96, 64),
+  const smallTarget = new THREE.WebGLRenderTarget(96, 64),
     oldTarget = renderer.getRenderTarget(),
     oldCreature = world.creature.visible,
     oldWatcher = world.watcher.visible,
@@ -2179,18 +2214,18 @@ async function prewarmRendering() {
     for (let roomId = 0; roomId < world.rooms.length; roomId++) {
       roomRendering.update(roomId);
       world.creature.visible = true;
-      world.creature.position.copy(world.worldPoint(roomId, new T.Vector3(0, 0, 0)));
+      world.creature.position.copy(world.worldPoint(roomId, new THREE.Vector3(0, 0, 0)));
       world.creature.quaternion.copy(roomQuaternion(roomId));
       world.watcher.visible = true;
-      world.watcher.position.copy(world.worldPoint(roomId, new T.Vector3(3, -1.1, 0)));
+      world.watcher.position.copy(world.worldPoint(roomId, new THREE.Vector3(3, -1.1, 0)));
       world.watcher.quaternion.copy(roomQuaternion(roomId));
-      const eye = world.worldPoint(roomId, new T.Vector3(0, 1.68, 1.5));
+      const eye = world.worldPoint(roomId, new THREE.Vector3(0, 1.68, 1.5));
       camera.position.copy(eye);
       camera.quaternion.copy(roomQuaternion(roomId));
       camera.updateMatrixWorld(true);
       flashlight.intensity = 78;
       flashlight.position.copy(eye);
-      flashlight.target.position.copy(world.worldPoint(roomId, new T.Vector3(0, 1.5, -2)));
+      flashlight.target.position.copy(world.worldPoint(roomId, new THREE.Vector3(0, 1.5, -2)));
       await renderer.compileAsync(scene, camera);
       renderer.setRenderTarget(smallTarget);
       renderer.render(scene, camera);
@@ -2207,7 +2242,7 @@ async function prewarmRendering() {
     const screen = world.rooms[0].tv.screen;
     const originalMap = screen.map;
     try {
-      screen.map = broadcastTexture;
+      setTVTexture(broadcastTexture);
       roomRendering.update(0);
       camera.position.set(0, 1.68, 1.5);
       camera.quaternion.identity();
@@ -2215,7 +2250,7 @@ async function prewarmRendering() {
       renderer.setRenderTarget(smallTarget);
       renderer.render(scene, camera);
     } finally {
-      screen.map = originalMap;
+      setTVTexture(originalMap);
     }
   } finally {
     renderer.setRenderTarget(oldTarget);

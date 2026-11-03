@@ -1,4 +1,4 @@
-import * as T from 'three';
+import * as THREE from 'three';
 
 // Shared by the visible opening, the hinged leaf and Cannon's collider.
 export const ENTRY_DOOR = Object.freeze({
@@ -12,11 +12,11 @@ export const ENTRY_DOOR = Object.freeze({
 
 export function createEntryDoor(room, doorModel, frameModel) {
   const d = ENTRY_DOOR,
-    root = new T.Group(),
-    pivot = new T.Group();
+    root = new THREE.Group(),
+    pivot = new THREE.Group();
   root.name = 'entrada-con-marco';
   room.group.add(root);
-  const paint = new T.MeshStandardMaterial({ color: '#797364', roughness: 0.88 });
+  const paint = new THREE.MeshStandardMaterial({ color: '#797364', roughness: 0.88 });
   const prepare = (model) => {
     const copy = model.clone(true);
     copy.traverse((o) => {
@@ -24,7 +24,7 @@ export function createEntryDoor(room, doorModel, frameModel) {
       o.castShadow = o.receiveShadow = true;
       const convert = (m) =>
         /brass/i.test(m.name)
-          ? new T.MeshStandardMaterial({ color: '#76613b', metalness: 0.72, roughness: 0.4 })
+          ? new THREE.MeshStandardMaterial({ color: '#76613b', metalness: 0.72, roughness: 0.4 })
           : paint;
       o.material = Array.isArray(o.material) ? o.material.map(convert) : convert(o.material);
     });
@@ -48,7 +48,7 @@ export function createEntryDoor(room, doorModel, frameModel) {
   const item = {
     id: 'entry-door',
     type: 'exit',
-    pos: new T.Vector3(d.x, 1.2, d.z - 0.12),
+    pos: new THREE.Vector3(d.x, 1.2, d.z - 0.12),
     radius: 2.25,
     label: 'Abrir la puerta de entrada',
     mesh: root
@@ -68,7 +68,7 @@ export function createEntryDoor(room, doorModel, frameModel) {
       item.label = open ? 'Cerrar la puerta de entrada' : 'Abrir la puerta de entrada';
     },
     update(dt) {
-      this.openAmount = T.MathUtils.damp(this.openAmount, this.target, 4.6, dt);
+      this.openAmount = THREE.MathUtils.damp(this.openAmount, this.target, 4.6, dt);
       if (Math.abs(this.openAmount - this.target) < 0.0001) this.openAmount = this.target;
       pivot.rotation.y = -1.68 * this.openAmount * this.swingSign;
       root.updateWorldMatrix(true, true);

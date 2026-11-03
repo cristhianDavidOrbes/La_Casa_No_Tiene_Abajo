@@ -1,11 +1,11 @@
 // Final narrativo: cámara, personaje y puerta cambian con el tiempo; todo está precargado.
-import * as T from 'three';
+import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { solveLimb } from './creature-motion.js';
 import { setExteriorVisible } from './room-rendering.js';
 
-const V = (x = 0, y = 0, z = 0) => new T.Vector3(x, y, z);
-const clamp = T.MathUtils.clamp;
+const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
+const clamp = THREE.MathUtils.clamp;
 const phase = (t, a, b) => clamp((t - a) / (b - a), 0, 1);
 const smooth = (n) => n * n * (3 - 2 * n);
 const mix = (a, b, n) => a.clone().lerp(b, n);
@@ -26,11 +26,11 @@ function copyMaterials(root) {
   return root;
 }
 function fitted(source, height) {
-  const root = new T.Group(),
+  const root = new THREE.Group(),
     model = copyMaterials(source.clone(true));
   root.add(model);
   model.updateWorldMatrix(true, true);
-  const bounds = new T.Box3().setFromObject(model),
+  const bounds = new THREE.Box3().setFromObject(model),
     size = bounds.getSize(V()),
     center = bounds.getCenter(V()),
     scale = height / Math.max(0.001, size.y);
@@ -47,7 +47,7 @@ function findBone(root, name) {
   return result;
 }
 function screenGeometry(tv) {
-  const bounds = new T.Box3(),
+  const bounds = new THREE.Box3(),
     p = V(),
     normal = V(),
     a = V(),
@@ -100,7 +100,7 @@ export class EndingSequence {
     this.time = 0;
     this.saved = null;
     this.events = new Set();
-    this.exterior = new T.Group();
+    this.exterior = new THREE.Group();
     this.exterior.name = 'exterior-final-cc0';
     scene.add(this.exterior);
     this.makeExterior();
@@ -115,18 +115,18 @@ export class EndingSequence {
     setExteriorVisible(world, false);
     this.tv = world.rooms[0].tv;
     this.screen = screenGeometry(this.tv);
-    this.feedCamera = new T.PerspectiveCamera(
+    this.feedCamera = new THREE.PerspectiveCamera(
       55,
       this.screen.width / this.screen.height,
       0.04,
       180
     );
-    this.feedTarget = new T.WebGLRenderTarget(1024, 768, {
+    this.feedTarget = new THREE.WebGLRenderTarget(1024, 768, {
       depthBuffer: true,
       stencilBuffer: false
     });
     this.feedTarget.texture.name = 'final-en-el-televisor';
-    this.crt = new T.ShaderMaterial({
+    this.crt = new THREE.ShaderMaterial({
       name: 'apagado-crt-final',
       toneMapped: true,
       uniforms: {
@@ -148,8 +148,8 @@ export class EndingSequence {
      #include <colorspace_fragment>
     }`
     });
-    this.lookMatrix = new T.Matrix4();
-    this.targetQuaternion = new T.Quaternion();
+    this.lookMatrix = new THREE.Matrix4();
+    this.targetQuaternion = new THREE.Quaternion();
     this.neck = findBone(this.heroModel, 'Head');
   }
 
@@ -165,35 +165,35 @@ export class EndingSequence {
     for (const key of ['map', 'normalMap', 'roughnessMap'])
       if (ground[key]) {
         maps[key] = ground[key].clone();
-        maps[key].wrapS = maps[key].wrapT = T.RepeatWrapping;
+        maps[key].wrapS = maps[key].wrapT = THREE.RepeatWrapping;
         maps[key].repeat.set(28, 28);
         maps[key].needsUpdate = true;
       }
-    const soil = new T.MeshStandardMaterial({
+    const soil = new THREE.MeshStandardMaterial({
       ...maps,
       color: '#7c8272',
       roughness: 1,
-      normalScale: new T.Vector2(0.35, 0.35)
+      normalScale: new THREE.Vector2(0.35, 0.35)
     });
     // The yard cannot cover the living-room floor portals from underneath.
-    const yard = new T.Shape();
+    const yard = new THREE.Shape();
     yard.moveTo(-75, -75);
     yard.lineTo(75, -75);
     yard.lineTo(75, 75);
     yard.lineTo(-75, 75);
     yard.closePath();
-    const cutout = new T.Path();
+    const cutout = new THREE.Path();
     cutout.moveTo(-5.3, -6.05);
     cutout.lineTo(-5.3, 6.3);
     cutout.lineTo(5.3, 6.3);
     cutout.lineTo(5.3, -6.05);
     cutout.closePath();
     yard.holes.push(cutout);
-    const landGeometry = new T.ShapeGeometry(yard),
+    const landGeometry = new THREE.ShapeGeometry(yard),
       uv = landGeometry.attributes.uv;
     for (let i = 0; i < uv.count; i++)
       uv.setXY(i, (uv.getX(i) + 75) / 150, (uv.getY(i) + 75) / 150);
-    const land = new T.Mesh(landGeometry, soil);
+    const land = new THREE.Mesh(landGeometry, soil);
     land.rotation.x = -Math.PI / 2;
     land.position.y = -0.055;
     land.receiveShadow = true;
@@ -201,12 +201,12 @@ export class EndingSequence {
     this.exterior.add(land);
     if (this.assets.road?.scene) {
       const source = this.assets.road.scene,
-        box = new T.Box3().setFromObject(source),
+        box = new THREE.Box3().setFromObject(source),
         size = box.getSize(V()),
         center = box.getCenter(V());
       for (let i = -5; i <= 5; i++) {
         const segment = copyMaterials(source.clone(true)),
-          holder = new T.Group();
+          holder = new THREE.Group();
         holder.rotation.y = Math.PI / 2;
         holder.position.set(i * 12, -0.035, 17);
         segment.scale.set(6 / size.x, 0.045 / Math.max(0.001, size.y), 12 / size.z);
@@ -232,28 +232,28 @@ export class EndingSequence {
         model.rotation.y = yaw;
         this.exterior.add(model);
       }
-    this.exteriorLights = new T.Group();
+    this.exteriorLights = new THREE.Group();
     this.exteriorLights.name = 'luces-exterior-residentes';
     this.scene.add(this.exteriorLights);
-    this.moon = new T.DirectionalLight('#9bbed1', 0.65);
+    this.moon = new THREE.DirectionalLight('#9bbed1', 0.65);
     this.moon.position.set(-15, 28, 15);
     this.moon.target.position.set(0, 0, 4);
     this.exteriorLights.add(this.moon, this.moon.target);
-    this.skyFill = new T.HemisphereLight('#7f9eae', '#343a2b', 0.16);
+    this.skyFill = new THREE.HemisphereLight('#7f9eae', '#343a2b', 0.16);
     this.exteriorLights.add(this.skyFill);
-    this.porchLight = new T.PointLight('#e3b578', 14, 12, 2);
+    this.porchLight = new THREE.PointLight('#e3b578', 14, 12, 2);
     this.porchLight.position.set(-3.2, 2.9, 7.3);
     this.exteriorLights.add(this.porchLight);
   }
 
   makeProtagonist() {
-    this.hero = new T.Group();
+    this.hero = new THREE.Group();
     this.hero.name = 'protagonista-con-la-cinta';
     this.hero.visible = false;
     this.heroModel = copyMaterials(cloneSkeleton(this.assets.protagonist.scene));
     this.hero.add(this.heroModel);
     this.exterior.add(this.hero);
-    this.mixer = new T.AnimationMixer(this.heroModel);
+    this.mixer = new THREE.AnimationMixer(this.heroModel);
     this.actions = {};
     // Keep the imported 62-joint skeleton and native animation scales intact.
     for (const [key, suffix] of [
@@ -274,7 +274,7 @@ export class EndingSequence {
     this.heroModel.traverse((o) => {
       if (o.isSkinnedMesh) o.skeleton.update();
     });
-    const bounds = new T.Box3().setFromObject(this.heroModel, true),
+    const bounds = new THREE.Box3().setFromObject(this.heroModel, true),
       height = bounds.max.y - bounds.min.y,
       scale = 1.82 / height,
       center = bounds.getCenter(V());
@@ -299,13 +299,13 @@ export class EndingSequence {
     tape.scale.set(1, 1, 1);
     tape.visible = true;
     tape.updateWorldMatrix(true, true);
-    const tapeBox = new T.Box3().setFromObject(tape),
+    const tapeBox = new THREE.Box3().setFromObject(tape),
       tapeSize = tapeBox.getSize(V()),
       tapeCenter = tapeBox.getCenter(V());
     const tapeScale = 0.235 / Math.max(tapeSize.x, tapeSize.y, tapeSize.z);
     tape.scale.setScalar(tapeScale);
     tape.position.copy(tapeCenter).multiplyScalar(-tapeScale);
-    this.tapeGrip = new T.Group();
+    this.tapeGrip = new THREE.Group();
     this.tapeGrip.name = 'cinta-en-la-mano';
     this.tapeGrip.add(tape);
     this.hand.add(this.tapeGrip);
@@ -341,7 +341,7 @@ export class EndingSequence {
     const exteriorVisible = this.exterior.visible;
     setExteriorVisible(this.world, true);
     // A distinct scratch target is important: the CRT samples feedTarget.
-    const scratch = new T.WebGLRenderTarget(64, 64);
+    const scratch = new THREE.WebGLRenderTarget(64, 64);
     this.hero.visible = true;
     this.hero.position.set(-3.2, 0, 7.5);
     this.exterior.updateWorldMatrix(true, true);
@@ -410,8 +410,8 @@ export class EndingSequence {
         ? Math.max(6.8, this.startPosition.z)
         : Math.min(5.3, this.startPosition.z)
     );
-    this.scene.background = new T.Color('#0a1015');
-    this.scene.fog = new T.FogExp2('#0a1015', 0.018);
+    this.scene.background = new THREE.Color('#0a1015');
+    this.scene.fog = new THREE.FogExp2('#0a1015', 0.018);
     this.scene.environmentIntensity = 0.12;
     this.world.rooms.forEach((room) => {
       room.group.visible = room.id === 0;
@@ -454,10 +454,10 @@ export class EndingSequence {
     this.camera.fov = 55;
     this.camera.updateProjectionMatrix();
     this.feedCamera.aspect = this.screen.width / this.screen.height;
-    const fovRad = T.MathUtils.degToRad(this.camera.fov),
+    const fovRad = THREE.MathUtils.degToRad(this.camera.fov),
       visibleHeight = Math.min(this.screen.height, this.screen.width / this.camera.aspect);
     this.revealDistance = visibleHeight / (2 * Math.tan(fovRad / 2));
-    this.feedCamera.fov = T.MathUtils.radToDeg(
+    this.feedCamera.fov = THREE.MathUtils.radToDeg(
       2 * Math.atan(Math.tan(fovRad / 2) / (visibleHeight / this.screen.height))
     );
     this.feedCamera.updateProjectionMatrix();
@@ -496,7 +496,7 @@ export class EndingSequence {
     if (!this.active || this.completed) return;
     this.time = Math.min(DURATION, this.time + Math.max(0, dt));
     const t = this.time;
-    const fov = T.MathUtils.lerp(this.saved.fov, 55, smooth(phase(t, 0, 1.3)));
+    const fov = THREE.MathUtils.lerp(this.saved.fov, 55, smooth(phase(t, 0, 1.3)));
     if (this.camera.fov !== fov) {
       this.camera.fov = fov;
       this.camera.updateProjectionMatrix();
@@ -563,8 +563,8 @@ export class EndingSequence {
       const p = smooth(phase(t, 3.8, 6)),
         position = mix(V(-3.2, 1.7, 9.05), V(-0.35, 2.05, 11.8), p);
       // Turn smoothly back toward the door, without a cut or teleport.
-      const outward = new T.Quaternion().setFromRotationMatrix(
-        new T.Matrix4().lookAt(position, V(-3.2, 1.5, 17), UP)
+      const outward = new THREE.Quaternion().setFromRotationMatrix(
+        new THREE.Matrix4().lookAt(position, V(-3.2, 1.5, 17), UP)
       );
       this.aim(position, V(-3.2, 1.25, 6.3));
       this.camera.quaternion.copy(outward).slerp(this.targetQuaternion, p);

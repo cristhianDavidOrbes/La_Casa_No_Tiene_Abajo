@@ -1,3 +1,4 @@
+// Ampliación necesaria: oscurecer un cuarto sin apagar el relleno de los cuartos vecinos.
 import { ShaderChunk } from 'three';
 
 // Compiled during the existing loading screen. Only a uniform changes in play:

@@ -1,4 +1,4 @@
-import * as T from 'three';
+import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { loadPool, loadWithRetry } from './asset-loading.js';
 
@@ -6,7 +6,7 @@ import { loadPool, loadWithRetry } from './asset-loading.js';
 export async function loadEndingAssets(progress = () => {}) {
   const assets = {},
     loader = new GLTFLoader(),
-    textureLoader = new T.TextureLoader();
+    textureLoader = new THREE.TextureLoader();
   let done = 0;
   const models = [
     ['protagonist', 'protagonist.glb'],
@@ -29,10 +29,10 @@ export async function loadEndingAssets(progress = () => {}) {
       const texture = await loadWithRetry('/assets/ending/ground_' + name + '.jpg', (url) =>
         textureLoader.loadAsync(url)
       );
-      texture.wrapS = texture.wrapT = T.RepeatWrapping;
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
       texture.repeat.set(24, 24);
       texture.anisotropy = 4;
-      if (slot === 'map') texture.colorSpace = T.SRGBColorSpace;
+      if (slot === 'map') texture.colorSpace = THREE.SRGBColorSpace;
       assets.ground[slot] = texture;
       progress(++done, 7);
     }

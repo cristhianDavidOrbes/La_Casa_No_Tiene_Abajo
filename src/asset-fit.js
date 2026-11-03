@@ -1,9 +1,9 @@
-import * as T from 'three';
+import * as THREE from 'three';
 
 // Material reassignment on the downloaded Poly Haven mesh, not an extra display plane.
 // The CRT glass is curved: retain its imported triangles and project video UVs onto them.
 export function fitCRT(root, texture) {
-  const glass = new T.MeshBasicMaterial({ map: texture, toneMapped: false });
+  const glass = new THREE.MeshBasicMaterial({ map: texture, toneMapped: false });
   let count = 0;
   root.traverse((o) => {
     if (!o.isMesh) return;

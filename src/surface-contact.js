@@ -1,3 +1,4 @@
+// Apoyos del monstruo: lanzar un rayo y usar la superficie que devuelve Cannon.
 import { Vector3, Ray, MathUtils } from 'three';
 const Y = new Vector3(0, 1, 0);
 // Each limb owns its supporting normal. A gravity turn never rotates four planted

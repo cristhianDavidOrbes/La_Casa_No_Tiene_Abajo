@@ -1,5 +1,5 @@
 // Semanas 2, 4, 7 y 8: modelos compartidos, grupos, materiales PBR, focos y partículas.
-import * as T from 'three';
+import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import { MTLLoader } from 'three/addons/loaders/MTLLoader.js';
@@ -95,21 +95,21 @@ export async function loadAssets(progress) {
   const paperMaps = await Promise.all(
     ['diff', 'normal'].map(async (name) => {
       const t = await loadWithRetry('/assets/downloaded/letter-paper-' + name + '.png', (url) =>
-        new T.TextureLoader().loadAsync(url)
+        new THREE.TextureLoader().loadAsync(url)
       );
-      if (name === 'diff') t.colorSpace = T.SRGBColorSpace;
+      if (name === 'diff') t.colorSpace = THREE.SRGBColorSpace;
       progress(++done, total);
       return t;
     })
   );
   models.paper.traverse((o) => {
     if (o.isMesh)
-      o.material = new T.MeshStandardMaterial({
+      o.material = new THREE.MeshStandardMaterial({
         map: paperMaps[0],
         normalMap: paperMaps[1],
-        normalScale: new T.Vector2(0.2, 0.2),
+        normalScale: new THREE.Vector2(0.2, 0.2),
         roughness: 1,
-        side: T.DoubleSide
+        side: THREE.DoubleSide
       });
   });
   await loadPool(
@@ -126,48 +126,52 @@ export async function loadAssets(progress) {
     ],
     async (name) => {
       const t = await loadWithRetry('/assets/textures/' + name + '.jpg', (url) =>
-        new T.TextureLoader().loadAsync(url)
+        new THREE.TextureLoader().loadAsync(url)
       );
-      t.wrapS = t.wrapT = T.RepeatWrapping;
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.anisotropy = 8;
-      if (/diff/i.test(name)) t.colorSpace = T.SRGBColorSpace;
+      if (/diff/i.test(name)) t.colorSpace = THREE.SRGBColorSpace;
       textures[name] = t;
       progress(++done, total);
     }
   );
-  wood = new T.MeshStandardMaterial({
+  wood = new THREE.MeshStandardMaterial({
     map: textures['wood-diff'],
     normalMap: textures['wood-nor_gl'],
     roughnessMap: textures['wood-Rough'],
     color: '#9b8870',
     roughness: 0.88,
-    normalScale: new T.Vector2(0.3, 0.3)
+    normalScale: new THREE.Vector2(0.3, 0.3)
   });
-  plaster = new T.MeshStandardMaterial({
+  plaster = new THREE.MeshStandardMaterial({
     map: textures['plaster-Diffuse'],
     normalMap: textures['plaster-nor_gl'],
     roughnessMap: textures['plaster-rough'],
     color: '#bdb9a5',
     roughness: 1,
-    normalScale: new T.Vector2(0.25, 0.25)
+    normalScale: new THREE.Vector2(0.25, 0.25)
   });
-  carpet = new T.MeshStandardMaterial({
+  carpet = new THREE.MeshStandardMaterial({
     map: textures['rug-Diffuse'],
     normalMap: textures['rug-nor_gl'],
     roughnessMap: textures['rug-Rough'],
     color: '#928679',
     roughness: 1,
-    normalScale: new T.Vector2(0.35, 0.35)
+    normalScale: new THREE.Vector2(0.35, 0.35)
   });
 }
 function agedMaterial(original) {
   const name = (original.name || '').toLowerCase(),
-    m = new T.MeshStandardMaterial({ color: original.color, map: original.map, roughness: 0.85 });
+    m = new THREE.MeshStandardMaterial({
+      color: original.color,
+      map: original.map,
+      roughness: 0.85
+    });
   if (name === 'wood') {
     m.color.set('#66513b');
     m.map = wood.map;
     m.normalMap = wood.normalMap;
-    m.normalScale = new T.Vector2(0.1, 0.1);
+    m.normalScale = new THREE.Vector2(0.1, 0.1);
   } else if (name.includes('metal')) {
     m.color.set(name.includes('dark') ? '#18211d' : '#566453');
     m.metalness = 0.5;
@@ -196,15 +200,15 @@ function instance(name, { height, size, mat, raw = false } = {}) {
   };
   name = replacements[name] || name;
   if (name.startsWith('h-')) raw = true;
-  const root = new T.Group(),
+  const root = new THREE.Group(),
     m = models[name].clone(true);
   root.add(m);
-  const b = new T.Box3().setFromObject(m),
-    s = b.getSize(new T.Vector3()),
-    c = b.getCenter(new T.Vector3());
+  const b = new THREE.Box3().setFromObject(m),
+    s = b.getSize(new THREE.Vector3()),
+    c = b.getCenter(new THREE.Vector3());
   const scale = size
-    ? new T.Vector3(size[0] / s.x, size[1] / s.y, size[2] / s.z)
-    : new T.Vector3().setScalar(height / s.y);
+    ? new THREE.Vector3(size[0] / s.x, size[1] / s.y, size[2] / s.z)
+    : new THREE.Vector3().setScalar(height / s.y);
   m.scale.copy(scale);
   m.position.set(-c.x * scale.x, -b.min.y * scale.y, -c.z * scale.z);
   m.traverse((o) => {
@@ -221,7 +225,7 @@ function instance(name, { height, size, mat, raw = false } = {}) {
 function collider(room, obj) {
   obj.updateMatrixWorld(true);
   const inverse = room.group.matrixWorld.clone().invert(),
-    b = new T.Box3().setFromObject(obj).applyMatrix4(inverse);
+    b = new THREE.Box3().setFromObject(obj).applyMatrix4(inverse);
   const add = (box) =>
     room.colliders.push({
       minX: box.min.x,
@@ -235,14 +239,14 @@ function collider(room, obj) {
   // A chair is not a solid cube up to the top of its back: expose the seat.
   if (
     /chair/i.test(obj.userData.asset || '') &&
-    new T.Vector3(0, 1, 0).applyQuaternion(obj.quaternion).y > 0.98
+    new THREE.Vector3(0, 1, 0).applyQuaternion(obj.quaternion).y > 0.98
   ) {
     const h = b.max.y - b.min.y,
       seat = b.clone();
     seat.max.y = b.min.y + h * 0.49;
     add(seat);
-    const back = new T.Box3(),
-      point = new T.Vector3();
+    const back = new THREE.Box3(),
+      point = new THREE.Vector3();
     obj.traverse((o) => {
       if (!o.isMesh) return;
       const matrix = inverse.clone().multiply(o.matrixWorld),
@@ -284,8 +288,8 @@ function structure(room, name, size, pos, mat, repeat) {
   // Kenney's palette UVs are not tiling PBR UVs. Re-map the imported mesh in room metres;
   // this changes only texture coordinates, preserving every downloaded vertex and face.
   const inverse = room.group.matrixWorld.clone().invert(),
-    p = new T.Vector3(),
-    n = new T.Vector3();
+    p = new THREE.Vector3(),
+    n = new THREE.Vector3();
   root.traverse((o) => {
     if (!o.isMesh) return;
     const g = o.geometry.clone(),
@@ -293,7 +297,7 @@ function structure(room, name, size, pos, mat, repeat) {
       normals = g.attributes.normal,
       uv = new Float32Array(positions.count * 2),
       matrix = inverse.clone().multiply(o.matrixWorld),
-      normalMatrix = new T.Matrix3().getNormalMatrix(matrix);
+      normalMatrix = new THREE.Matrix3().getNormalMatrix(matrix);
     for (let i = 0; i < positions.count; i++) {
       p.fromBufferAttribute(positions, i).applyMatrix4(matrix);
       n.fromBufferAttribute(normals, i).applyNormalMatrix(normalMatrix);
@@ -305,7 +309,7 @@ function structure(room, name, size, pos, mat, repeat) {
       uv[2 * i] = (horizontal ? p.x : ax > az ? p.z : p.x) / scale;
       uv[2 * i + 1] = (horizontal ? p.z : p.y) / scale;
     }
-    g.setAttribute('uv', new T.BufferAttribute(uv, 2));
+    g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
     o.geometry = g;
   });
   return root;
@@ -328,8 +332,8 @@ export function textTexture(
   a.forEach((line, i) =>
     ctx.fillText(line, width / 2, height / 2 + (i - (a.length - 1) / 2) * size * 1.5, width - 36)
   );
-  const t = new T.CanvasTexture(c);
-  t.colorSpace = T.SRGBColorSpace;
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
   return t;
 }
 // No world-space instructional signs: guidance belongs to thoughts and actual notebooks.
@@ -353,14 +357,14 @@ function note(room, id) {
     id: 'note-' + id,
     type: 'note',
     note: id,
-    pos: new T.Vector3(pos[0], pos[1] + 0.03, pos[2]),
+    pos: new THREE.Vector3(pos[0], pos[1] + 0.03, pos[2]),
     radius: 2,
     label: 'Leer la carta de Julián',
     mesh
   });
 }
 function light(room, pos, color, power, range = 10) {
-  const l = new T.PointLight(color, power, range, 2);
+  const l = new THREE.PointLight(color, power, range, 2);
   l.position.set(...pos);
   room.group.add(l);
   room.lights.push({ light: l, power });
@@ -378,7 +382,7 @@ function lamp(room) {
   });
   const color = room.id === 0 ? '#ffe0a3' : room.id === 3 ? '#b6c9c4' : '#e0c6a6';
   const bulb = light(room, [0, room.h - 0.58, 0], color, room.id === 0 ? 42 : 30, 15);
-  const shadow = new T.SpotLight(color, room.id === 0 ? 95 : 85, 16, 1.25, 0.8, 2);
+  const shadow = new THREE.SpotLight(color, room.id === 0 ? 95 : 85, 16, 1.25, 0.8, 2);
   shadow.position.set(0, room.h - 0.62, 0);
   shadow.target.position.set(0, 0, 0);
   shadow.castShadow = true;
@@ -389,12 +393,12 @@ function lamp(room) {
   room.bulb = { lamp: bulb, shadow, model, power: bulb.intensity };
 }
 function pipe(room, start, end, r = 0.05) {
-  const a = new T.Vector3(...start),
-    b = new T.Vector3(...end),
+  const a = new THREE.Vector3(...start),
+    b = new THREE.Vector3(...end),
     len = a.distanceTo(b),
     m = instance('s-pipe', { size: [r * 2, len, r * 2] });
   m.position.copy(a);
-  m.quaternion.setFromUnitVectors(new T.Vector3(0, 1, 0), b.sub(a).normalize());
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.sub(a).normalize());
   room.group.add(m);
   return m;
 }
@@ -446,7 +450,7 @@ function shell(room) {
 function buildConnectors(scene) {
   return LINKS.map((link) => {
     const data = LEVELS[link.a],
-      group = new T.Group();
+      group = new THREE.Group();
     group.position.set(...data.pos);
     group.rotation.z = data.angle;
     scene.add(group);
@@ -469,16 +473,16 @@ function dust(room) {
     a[3 * i + 1] = Math.random() * room.h;
     a[3 * i + 2] = (Math.random() - 0.5) * room.d;
   }
-  const g = new T.BufferGeometry();
-  g.setAttribute('position', new T.BufferAttribute(a, 3));
-  room.dust = new T.Points(
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.BufferAttribute(a, 3));
+  room.dust = new THREE.Points(
     g,
-    new T.PointsMaterial({
+    new THREE.PointsMaterial({
       color: '#c9d6ba',
       size: 0.018,
       transparent: true,
       opacity: 0.38,
-      blending: T.AdditiveBlending,
+      blending: THREE.AdditiveBlending,
       depthWrite: false
     })
   );
@@ -487,12 +491,14 @@ function dust(room) {
 function relay(room, i, pos, rot = 0) {
   const root = prop(room, 'h-power_box_01', [pos[0], pos[1] - 0.45, pos[2]], 0.85, rot, false);
   root.updateWorldMatrix(true, true);
-  let b = new T.Box3().setFromObject(root).applyMatrix4(room.group.matrixWorld.clone().invert());
+  let b = new THREE.Box3()
+    .setFromObject(root)
+    .applyMatrix4(room.group.matrixWorld.clone().invert());
   if (rot === 0) root.position.z += -room.d / 2 + 0.12 - b.min.z;
   else root.position.x += room.w / 2 - 0.12 - b.max.x;
   root.updateWorldMatrix(true, true);
-  b = new T.Box3().setFromObject(root).applyMatrix4(room.group.matrixWorld.clone().invert());
-  const center = b.getCenter(new T.Vector3()),
+  b = new THREE.Box3().setFromObject(root).applyMatrix4(room.group.matrixWorld.clone().invert());
+  const center = b.getCenter(new THREE.Vector3()),
     lever = prop(
       room,
       's-wall-switch',
@@ -529,9 +535,13 @@ function addLocker(room, x, z, rot) {
   // but give it a hollow cabin and a real opening, not a screen-space illusion.
   if (outer) outer.visible = false;
   if (door) door.visible = false;
-  const steel = new T.MeshStandardMaterial({ color: '#273b37', metalness: 0.65, roughness: 0.8 });
+  const steel = new THREE.MeshStandardMaterial({
+    color: '#273b37',
+    metalness: 0.65,
+    roughness: 0.8
+  });
   const panel = (parent, size, pos, mat = steel) => {
-    const mesh = new T.Mesh(new T.BoxGeometry(...size), mat);
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), mat);
     mesh.position.set(...pos);
     mesh.castShadow = mesh.receiveShadow = true;
     parent.add(mesh);
@@ -542,16 +552,16 @@ function addLocker(room, x, z, rot) {
   panel(model, [0.98, 1.99, 0.035], [0, 1.1, -0.395]);
   panel(model, [0.98, 0.035, 0.74], [0, 0.12, -0.045]);
   panel(model, [0.98, 0.035, 0.74], [0, 2.08, -0.045]);
-  const pivot = new T.Group();
+  const pivot = new THREE.Group();
   pivot.position.set(-0.46, 0, 0.328);
   model.add(pivot);
-  const shape = new T.Shape();
+  const shape = new THREE.Shape();
   shape.moveTo(0, 0.15);
   shape.lineTo(0.92, 0.15);
   shape.lineTo(0.92, 2.06);
   shape.lineTo(0, 2.06);
   shape.closePath();
-  const vent = new T.Path();
+  const vent = new THREE.Path();
   vent.moveTo(0.13, 1.25);
   vent.lineTo(0.13, 1.7);
   vent.lineTo(0.79, 1.7);
@@ -560,9 +570,9 @@ function addLocker(room, x, z, rot) {
   shape.holes.push(vent);
   const doorMaterial =
     door?.material.clone() ??
-    new T.MeshStandardMaterial({ color: '#a9b0a0', metalness: 0.5, roughness: 0.8 });
-  const leaf = new T.Mesh(
-    new T.ExtrudeGeometry(shape, { depth: 0.025, bevelEnabled: false }),
+    new THREE.MeshStandardMaterial({ color: '#a9b0a0', metalness: 0.5, roughness: 0.8 });
+  const leaf = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(shape, { depth: 0.025, bevelEnabled: false }),
     doorMaterial
   );
   leaf.castShadow = leaf.receiveShadow = true;
@@ -573,8 +583,8 @@ function addLocker(room, x, z, rot) {
     model.updateWorldMatrix(true, true);
     pivot.attach(handle);
   }
-  const front = new T.Vector3(Math.sin(rot), 0, Math.cos(rot)),
-    pos = new T.Vector3(x, 0.14, z).addScaledVector(front, -0.1),
+  const front = new THREE.Vector3(Math.sin(rot), 0, Math.cos(rot)),
+    pos = new THREE.Vector3(x, 0.14, z).addScaledVector(front, -0.1),
     eye = pos.clone();
   eye.y = 1.475;
   room.locker = {
@@ -592,7 +602,7 @@ function addLocker(room, x, z, rot) {
   room.interactions.push({
     id: 'locker-' + room.id,
     type: 'locker',
-    pos: new T.Vector3(x, 1.15, z).addScaledVector(front, 0.43),
+    pos: new THREE.Vector3(x, 1.15, z).addScaledVector(front, 0.43),
     radius: 1.9,
     label: 'Abrir casillero y esconderte',
     mesh: model
@@ -615,7 +625,7 @@ export function createWorld(scene) {
   const rooms = LEVELS.map((data) => {
     const room = {
       ...data,
-      group: new T.Group(),
+      group: new THREE.Group(),
       portals: roomPortals(data.id),
       openPortals: [],
       colliders: [],
@@ -636,8 +646,8 @@ export function createWorld(scene) {
   const canvas = document.createElement('canvas');
   canvas.width = 768;
   canvas.height = 576;
-  const texture = new T.CanvasTexture(canvas);
-  texture.colorSpace = T.SRGBColorSpace;
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
   const screen = fitCRT(tv, texture);
   collider(r, tv);
   r.tv = {
@@ -651,14 +661,14 @@ export function createWorld(scene) {
   r.interactions.push({
     id: 'insert-tape',
     type: 'insert',
-    pos: new T.Vector3(0.6, 1, -4),
+    pos: new THREE.Vector3(0.6, 1, -4),
     radius: 1.85,
     label: 'Insertar la cinta en el receptor'
   });
   r.chair = prop(r, 'loungeChair', [0, 0, -0.75], 1.1, Math.PI);
   r.interactions.push({
     id: 'chair',
-    pos: new T.Vector3(0, 0.7, -0.7),
+    pos: new THREE.Vector3(0, 0.7, -0.7),
     radius: 2.5,
     label: 'Sentarte a ver la cinta',
     type: 'chair',
@@ -679,7 +689,7 @@ export function createWorld(scene) {
   r.interactions.push({
     id: 'fuse',
     type: 'fuse',
-    pos: new T.Vector3(-3.5, 0.88, 4.35),
+    pos: new THREE.Vector3(-3.5, 0.88, 4.35),
     radius: 1.85,
     label: 'Recoger el fusible de repuesto',
     mesh: r.fuse
@@ -701,7 +711,7 @@ export function createWorld(scene) {
   r1.interactions.push({
     id: 'radio',
     type: 'radio',
-    pos: new T.Vector3(-1.5, 1.2, -2.6),
+    pos: new THREE.Vector3(-1.5, 1.2, -2.6),
     radius: 2,
     label: 'Sintonizar la radio del motor'
   });
@@ -729,7 +739,7 @@ export function createWorld(scene) {
       for (let n = 0; n < 5; n++) {
         const height = 0.24 + ((n + row + index) % 4) * 0.02,
           root = instance('book-single-1', { height, raw: true }),
-          pivot = new T.Group();
+          pivot = new THREE.Group();
         root.position.y = -height / 2;
         pivot.add(root);
         pivot.position.set(x + (n - 2) * 0.18, (board * 2.1) / 2.063442 + height / 2, -3.4);
@@ -747,7 +757,7 @@ export function createWorld(scene) {
         });
         books.push({ root: pivot, shelf });
       }
-    archiveShelves.push({ index, root: shelf, center: new T.Vector3(x, 1, -3.3), books });
+    archiveShelves.push({ index, root: shelf, center: new THREE.Vector3(x, 1, -3.3), books });
   }
   const bookBurst = new BookBurst(r3, archiveShelves);
   prop(r3, 'cabinetTelevision', [0, 0, 1.7], 0.8);
@@ -755,7 +765,7 @@ export function createWorld(scene) {
   r3.interactions.push({
     id: 'family-tape',
     type: 'tape',
-    pos: new T.Vector3(0, 0.84, 1.7),
+    pos: new THREE.Vector3(0, 0.84, 1.7),
     radius: 2,
     label: 'Recoger «PARA VOLVER»',
     mesh: r3.tape
@@ -767,7 +777,7 @@ export function createWorld(scene) {
   r3.interactions.push({
     id: 'flashlight',
     type: 'flashlight',
-    pos: new T.Vector3(-0.6, 0.94, 1.7),
+    pos: new THREE.Vector3(-0.6, 0.94, 1.7),
     radius: 1.8,
     label: 'Recoger la linterna de la mesa',
     mesh: r3.flashlight
@@ -782,7 +792,7 @@ export function createWorld(scene) {
   r4.interactions.push({
     id: 'rewinder',
     type: 'rewinder',
-    pos: new T.Vector3(-1.5, 1.2, -2.5),
+    pos: new THREE.Vector3(-1.5, 1.2, -2.5),
     radius: 2,
     label: 'Rebobinar la cinta familiar'
   });
@@ -802,7 +812,7 @@ export function createWorld(scene) {
       id: 'orientation-chair',
       type: 'orientation-clue',
       room: room.id,
-      pos: new T.Vector3(2, 0.5, 1.3),
+      pos: new THREE.Vector3(2, 0.5, 1.3),
       radius: 3.8,
       label: 'Examinar la silla de madera',
       mesh: room.clueChair
@@ -817,7 +827,7 @@ export function createWorld(scene) {
   scene.add(creature);
   creature.visible = false;
   const watcher = createCreatureRig(models.creature),
-    watcherClipPlane = new T.Plane();
+    watcherClipPlane = new THREE.Plane();
   configureWatcher(watcher, watcherClipPlane);
   const watcherMotion = new CreatureMotion(watcher);
   watcherMotion.bipedal = 1;
@@ -874,12 +884,12 @@ export function applyPuzzle(world, puzzle) {
     room.clueChair.rotation.set(...pose.rotation);
     room.clueChair.updateMatrixWorld(true);
     collider(room, room.clueChair);
-    const b = new T.Box3()
+    const b = new THREE.Box3()
       .setFromObject(room.clueChair)
       .applyMatrix4(room.group.matrixWorld.clone().invert());
     room.interactions
       .find((i) => i.id === 'orientation-chair')
-      .pos.copy(b.getCenter(new T.Vector3()));
+      .pos.copy(b.getCenter(new THREE.Vector3()));
   }
 }
 export function updateWorld(world, state, dt, time, comfort, enemy = null) {
@@ -888,7 +898,7 @@ export function updateWorld(world, state, dt, time, comfort, enemy = null) {
     for (const p of room.portals) {
       if (!p.cover) continue;
       const open = portalOpen(p, state);
-      p.openAmount = T.MathUtils.damp(p.openAmount, open ? 1 : 0, 4, dt);
+      p.openAmount = THREE.MathUtils.damp(p.openAmount, open ? 1 : 0, 4, dt);
       p.cover.visible = p.openAmount < 0.995;
       p.cover.position.y = -0.065 - Math.min(1, p.openAmount * 5) * 0.2;
       p.cover.position.z = p.z + Math.max(0, (p.openAmount - 0.2) / 0.8) * 2.7;
@@ -907,7 +917,7 @@ export function updateWorld(world, state, dt, time, comfort, enemy = null) {
         if (source.power > 0)
           distance = Math.min(
             distance,
-            source.light.getWorldPosition(new T.Vector3()).distanceTo(enemy.position)
+            source.light.getWorldPosition(new THREE.Vector3()).distanceTo(enemy.position)
           );
       }
     const bulbFactor = room.threatLights.update(dt, { monsterRoom, distance, comfort });
@@ -924,7 +934,7 @@ export function updateWorld(world, state, dt, time, comfort, enemy = null) {
       const locker = room.locker;
       locker.doorTimer = Math.max(0, locker.doorTimer - dt);
       locker.doorTarget = locker.doorTimer > 0 ? 1 : 0;
-      locker.door.rotation.y = T.MathUtils.damp(
+      locker.door.rotation.y = THREE.MathUtils.damp(
         locker.door.rotation.y,
         locker.doorTarget * -1.55,
         10,
