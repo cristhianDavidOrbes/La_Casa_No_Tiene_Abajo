@@ -19,44 +19,15 @@ const loader = new GLTFLoader(),
   models = {},
   textures = {};
 const furniture = [
-  'floorFull',
-  'wall',
-  'wallWindow',
-  'paneling',
-  'bathroomMirror',
-  'loungeChair',
-  'cabinetTelevision',
-  'televisionVintage',
-  'sideTable',
-  'bookcaseOpen',
-  'bookcaseClosed',
   'books',
   'book-single-1',
   'rugRectangle',
-  'radio',
-  'lampSquareCeiling',
   'lampWall',
-  'doorway',
   'cardboardBoxClosed',
-  'cabinetBed',
-  'chair',
   'speaker',
-  'table',
-  'televisionAntenna',
-  'desk',
-  'computerKeyboard',
-  'computerScreen'
+  'computerKeyboard'
 ];
-const station = [
-  'floor-panel',
-  'pipe',
-  'wall-switch',
-  'display-wall',
-  'computer-system',
-  'container-flat-open',
-  'container-tall',
-  'door-single'
-];
+const station = ['pipe', 'wall-switch'];
 const haven = [
   'television_02',
   'ArmChair_01',
@@ -65,12 +36,9 @@ const haven = [
   'wooden_bookshelf_worn',
   'vintage_radio_transceiver',
   'power_box_01',
-  'binder_notebook',
   'hanging_industrial_lamp',
   'wooden_table_02',
   'painted_wooden_chair_01',
-  'cassette_player',
-  'gothic_statue',
   'vintage_video_camera',
   'vintage_flashlight'
 ];
@@ -94,18 +62,16 @@ export async function loadAssets(progress) {
     ['changingLocker', 'downloaded/changing-locker.glb']
   ];
   let done = 0;
-  const total = list.length + 17 + house.length;
+  const total = list.length + 14 + house.length;
   await loadPool(list, async ([name, file]) => {
     models[name] = (await loadWithRetry('/assets/' + file, (url) => loader.loadAsync(url))).scene;
     progress(++done, total);
   });
+  // Semanas 7 y 8: los módulos ya están exportados; no se convierten al jugar.
   await loadPool(house, async (name) => {
-    const materials = await loadWithRetry('/assets/house/' + name + '.mtl', (url) =>
-      new MTLLoader().loadAsync(url)
-    );
-    models['house-' + name] = await loadWithRetry('/assets/house/' + name + '.obj', (url) =>
-      new OBJLoader().setMaterials(materials).loadAsync(url)
-    );
+    models['house-' + name] = (
+      await loadWithRetry('/assets/house/' + name + '.glb', (url) => loader.loadAsync(url))
+    ).scene;
     progress(++done, total);
   });
   const vhsMaterials = await loadWithRetry('/assets/downloaded/VHS_cassette.mtl', (url) =>
@@ -150,9 +116,6 @@ export async function loadAssets(progress) {
       'wood-diff',
       'wood-nor_gl',
       'wood-Rough',
-      'concrete-Diffuse',
-      'concrete-nor_gl',
-      'concrete-Rough',
       'plaster-Diffuse',
       'plaster-nor_gl',
       'plaster-rough',
