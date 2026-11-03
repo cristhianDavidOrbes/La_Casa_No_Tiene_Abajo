@@ -1,0 +1,9 @@
+Abandoned Hall 01 - Octavian Tudose / Poly Haven
+Licencia de los assets: CC0-1.0
+Fuente: https://polyhaven.com/a/abandoned_hall_01
+Licencia: https://polyhaven.com/license
+Archivo: abandoned_hall_01_1k.hdr
+Resolucion: 1024 x 512
+Bytes originales: 1636687
+MD5 publicado por la API: d5f7e66438f44dd986876fa1cf90acd9
+Se carga localmente; no se consulta Poly Haven durante la partida.

@@ -23,6 +23,7 @@ export class Soundscape {
     this.stepIndex = 0;
     this.ready = false;
     this.preloading = null;
+    this.preparing = null;
     this.nextVoice = 0;
     this.duckUntil = 0;
   }
@@ -42,6 +43,25 @@ export class Soundscape {
       );
     return this.preloading;
   }
+  // Semana 3: decodificar durante la carga, activar el sonido con el primer clic.
+  prepare() {
+    if (this.preparing) return this.preparing;
+    this.preparing = (async () => {
+      const decoder = new OfflineAudioContext(1, 1, 48000);
+      const files = await this.preload();
+      await Promise.all(
+        files.filter(Boolean).map(async ([name, data]) => {
+          try {
+            this.buffers[name] = await decoder.decodeAudioData(data);
+          } catch (error) {
+            console.warn('Audio no decodificable', name, error);
+          }
+        })
+      );
+      this.preloading = null;
+    })();
+    return this.preparing;
+  }
   async init() {
     if (this.ctx) {
       await this.ctx.resume();
@@ -57,17 +77,7 @@ export class Soundscape {
     limiter.attack.value = 0.003;
     limiter.release.value = 0.16;
     this.master.connect(limiter).connect(this.ctx.destination);
-    const files = await this.preload();
-    await Promise.all(
-      files.filter(Boolean).map(async ([name, data]) => {
-        try {
-          this.buffers[name] = await this.ctx.decodeAudioData(data);
-        } catch (error) {
-          console.warn('Audio no decodificable', name, error);
-        }
-      })
-    );
-    this.preloading = null;
+    await this.prepare();
     const noise = this.ctx.createBuffer(1, this.ctx.sampleRate * 3, this.ctx.sampleRate),
       data = noise.getChannelData(0);
     for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;

@@ -1,11 +1,12 @@
 import './style.css';
 import './letter.css';
 import * as T from 'three';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { loadEnvironment } from './environment.js';
+import { loadBroadcasts, prepareVideo } from './media-loading.js';
 import { loadAssets, createWorld, updateWorld, applyPuzzle, applyLockerLayout } from './house.js';
 import { EYE_HEIGHT, smoothstep, collisionAt, insideHole } from './physics.js';
 import { SAVE_KEY, fresh, parseSave, objective, notes, letter } from './story.js';
-import { portalOpen, arrivalFor, roomPortals, roomQuaternion, localPosition } from './level.js';
+import { portalOpen, roomQuaternion, localPosition } from './level.js';
 import {
   collisionWorld,
   makeGravityBody,
@@ -13,7 +14,7 @@ import {
   gravityArrival,
   gravityEye
 } from './gravity.js';
-import { createPuzzle, puzzleSolved, puzzleOrder, CLUE_ROOMS } from './orientation-puzzle.js';
+import { puzzleSolved, puzzleOrder, CLUE_ROOMS } from './orientation-puzzle.js';
 import { chooseSpawnRoom, spawnPoint } from './environment-navigation.js';
 import {
   HauntDirector,
@@ -49,6 +50,7 @@ import { chairIcon, mountInstrumentArt } from './ui-art.js';
 const $ = (id) => document.getElementById(id),
   show = (id, on = true) => $(id).classList.toggle('hidden', !on);
 mountInstrumentArt();
+// 1. Semanas 1 y 2: escena, cámara, materiales y renderizador (T es Three.js).
 const scene = new T.Scene();
 scene.background = new T.Color('#070c0b');
 scene.fog = new T.FogExp2('#0b1210', 0.022);
@@ -73,12 +75,7 @@ renderer.toneMapping = T.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 renderer.outputColorSpace = T.SRGBColorSpace;
 $('game').appendChild(renderer.domElement);
-const pmrem = new T.PMREMGenerator(renderer),
-  env = new RoomEnvironment();
-scene.environment = pmrem.fromScene(env, 0.04).texture;
-scene.environmentIntensity = 0.08;
-env.dispose();
-pmrem.dispose();
+// 2. Semanas 4 y 7: relleno HDR y luces locales con una sombra compartida.
 const ambient = new T.AmbientLight('#c1d6cd', 0.18);
 scene.add(ambient);
 // Keep the spot in the light set at zero intensity between pulses. Toggling
@@ -86,11 +83,15 @@ scene.add(ambient);
 const flashlight = new T.SpotLight('#eaf7db', 0, 28, 0.72, 0.65, 1.2);
 scene.add(flashlight, flashlight.target);
 const audio = new Soundscape();
+let broadcasts = {};
 const broadcastVideo = document.createElement('video');
 broadcastVideo.playsInline = true;
 broadcastVideo.loop = false;
 broadcastVideo.preload = 'auto';
 broadcastVideo.muted = true;
+// Semana 3: Three.js actualiza el vídeo directamente sobre el cristal del TV.
+const broadcastTexture = new T.VideoTexture(broadcastVideo);
+broadcastTexture.colorSpace = T.SRGBColorSpace;
 let mediaRunning = false;
 let collisionTree,
   playerActor = null;
@@ -137,7 +138,6 @@ let retirement = new UnseenRetirement(),
   watcherHead = new WatcherHead(),
   blindness = 0;
 let flash = createFlash();
-const frameSamples = [];
 let hiddenLocker = null;
 const lockerSearch = new LockerSearch();
 let volume = 0.65,
@@ -198,6 +198,7 @@ function titleSignal(time) {
   lastBroadcastChannel = -2;
   const tv = world.rooms[0].tv,
     ctx = tv.ctx;
+  tv.screen.map = tv.texture;
   ctx.fillStyle = '#07130e';
   ctx.fillRect(0, 0, 768, 576);
   ctx.globalAlpha = 0.55;
@@ -580,10 +581,8 @@ function setChannel(n) {
   $('remote-channel').textContent = 'CANAL ' + String(n).padStart(2, '0');
   broadcastVideo.loop = n !== 2 && !(state.inserted && n === 3);
   audio.switch();
-  broadcastVideo.src =
-    state.inserted && n === 3
-      ? '/assets/broadcasts/para-volver.mp4'
-      : '/assets/broadcasts/canal-' + String(n).padStart(2, '0') + '.mp4';
+  const name = state.inserted && n === 3 ? 'para-volver' : 'canal-' + String(n).padStart(2, '0');
+  broadcastVideo.src = broadcasts[name];
   broadcastVideo
     .play()
     .catch(() =>
@@ -1824,11 +1823,14 @@ function broadcast(time) {
     ctx = tv.ctx,
     w = 768,
     h = 576;
+  const liveVideo = ch > 0 && broadcastVideo.readyState >= 2 && !(ch === 3 && !state.inserted);
+  tv.screen.map = liveVideo ? broadcastTexture : tv.texture;
+  tv.light.intensity = ch ? 7 : 0;
+  if (liveVideo) return;
   ctx.fillStyle = ch ? '#14201b' : '#030606';
   ctx.fillRect(0, 0, w, h);
   tv.light.intensity = ch ? 7 : 0;
   if (ch) {
-    if (broadcastVideo.readyState >= 2) ctx.drawImage(broadcastVideo, 0, 0, w, h);
     ctx.fillStyle = '#aebfa7';
     ctx.textAlign = 'left';
     ctx.font = '23px monospace';
@@ -2197,6 +2199,20 @@ async function prewarmRendering() {
       $('loading-bar').style.width = percent + '%';
       await new Promise((resolve) => requestAnimationFrame(resolve));
     }
+    // Preparar también la variante de vídeo evita compilarla al sentarse en el TV.
+    const screen = world.rooms[0].tv.screen;
+    const originalMap = screen.map;
+    try {
+      screen.map = broadcastTexture;
+      roomRendering.update(0);
+      camera.position.set(0, 1.68, 1.5);
+      camera.quaternion.identity();
+      await renderer.compileAsync(scene, camera);
+      renderer.setRenderTarget(smallTarget);
+      renderer.render(scene, camera);
+    } finally {
+      screen.map = originalMap;
+    }
   } finally {
     renderer.setRenderTarget(oldTarget);
     smallTarget.dispose();
@@ -2211,15 +2227,12 @@ async function prewarmRendering() {
 
 let last = performance.now(),
   frameTime = 0;
+// 5. Cada fotograma: entrada, física Cannon, sincronización, efectos y render.
 function frame(now) {
   requestAnimationFrame(frame);
   const rawDt = (now - last) / 1000,
     dt = Math.min(rawDt, 0.05);
   last = now;
-  if (mode === 'playing' && rawDt < 0.25) {
-    frameSamples.push(rawDt * 1000);
-    if (frameSamples.length > 600) frameSamples.shift();
-  }
   frameTime += dt;
   if (!world || warming) return;
   if (mode === 'cinematic' || mode === 'ending') {
@@ -2360,6 +2373,9 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 try {
+  // 6. Una sola carga inicial; los cuartos reutilizan lo que ya está en memoria.
+  $('loading-detail').textContent = 'PREPARANDO LA LUZ DEL ENTORNO';
+  await loadEnvironment(scene, renderer);
   await loadAssets((loaded, total) => {
     const percent = Math.round((loaded / Math.max(1, total)) * 50);
     $('load-status').textContent = `RECURSOS LOCALES / ${loaded} DE ${total}`;
@@ -2374,7 +2390,9 @@ try {
     $('loading-bar').style.width = percent + '%';
   });
   // Audio does not compete with glTF buffers during model loading.
-  audio.preload();
+  const mediaReady = Promise.all([audio.prepare(), loadBroadcasts()]);
+  // Evita un rechazo sin manejar mientras se preparan los modelos en la GPU.
+  mediaReady.catch(() => {});
   world = createWorld(scene);
   applyPuzzle(world, state.puzzle);
   roomRendering = new RoomRendering(world, scene);
@@ -2388,6 +2406,9 @@ try {
     assets: endingAssets,
     onComplete: win
   });
+  $('loading-detail').textContent = 'PREPARANDO SONIDO Y EMISIONES';
+  [, broadcasts] = await mediaReady;
+  await prepareVideo(broadcastVideo, broadcasts['canal-01']);
   await prewarmRendering();
   warming = true;
   $('loading-detail').textContent = 'PREPARANDO LA ÚLTIMA SEÑAL';
