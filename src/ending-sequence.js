@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { solveLimb } from './creature-motion.js';
 import { setExteriorVisible } from './room-rendering.js';
+import { prepareShaders } from './shader-loading.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const clamp = THREE.MathUtils.clamp;
@@ -339,6 +340,7 @@ export class EndingSequence {
       position = this.hero.position.clone(),
       screen = this.tv.screen;
     const exteriorVisible = this.exterior.visible;
+    const feedViewport = this.feedTarget.viewport.clone();
     setExteriorVisible(this.world, true);
     // A distinct scratch target is important: the CRT samples feedTarget.
     const scratch = new THREE.WebGLRenderTarget(64, 64);
@@ -346,18 +348,21 @@ export class EndingSequence {
     this.hero.position.set(-3.2, 0, 7.5);
     this.exterior.updateWorldMatrix(true, true);
     try {
+      // Reservar la textura completa, pero preparar sus shaders dibujando pocos píxeles.
+      this.feedTarget.viewport.set(0, 0, 96, 72);
       this.renderer.initRenderTarget(this.feedTarget);
       this.feedCamera.position.set(0, 2.5, 13);
       this.feedCamera.lookAt(-2, 1.1, 6);
       this.renderer.setRenderTarget(this.feedTarget);
       this.renderer.clear();
-      await this.renderer.compileAsync(this.scene, this.feedCamera);
+      await prepareShaders(this.renderer, this.scene, this.feedCamera);
       this.renderer.render(this.scene, this.feedCamera);
       this.swapScreen(true);
-      await this.renderer.compileAsync(this.scene, this.camera);
+      await prepareShaders(this.renderer, this.scene, this.camera);
       this.renderer.setRenderTarget(scratch);
       this.renderer.render(this.scene, this.camera);
     } finally {
+      this.feedTarget.viewport.copy(feedViewport);
       setExteriorVisible(this.world, exteriorVisible);
       this.swapScreen(screen === this.crt);
       this.hero.visible = visible;

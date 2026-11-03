@@ -3,6 +3,7 @@ import './letter.css';
 import * as THREE from 'three';
 import { loadEnvironment } from './environment.js';
 import { loadBroadcasts, prepareVideo } from './media-loading.js';
+import { prepareShaders } from './shader-loading.js';
 import { loadAssets, createWorld, updateWorld, applyPuzzle, applyLockerLayout } from './house.js';
 import { EYE_HEIGHT, smoothstep, collisionAt, insideHole } from './physics.js';
 import { SAVE_KEY, fresh, parseSave, objective, notes, letter } from './story.js';
@@ -2170,10 +2171,13 @@ async function prewarmRendering() {
   warming = true;
   const smallTarget = new THREE.WebGLRenderTarget(96, 64),
     oldTarget = renderer.getRenderTarget(),
+    oldShadowUpdate = renderer.shadowMap.autoUpdate,
     oldCreature = world.creature.visible,
     oldWatcher = world.watcher.visible,
     frustumFlags = [];
   try {
+    // Subir las mallas no requiere dibujar una sombra de 1024² cinco veces.
+    renderer.shadowMap.autoUpdate = false;
     // Compile alone does not upload vertex buffers for meshes outside the view.
     // Draw all resident meshes once while loading, then restore normal culling.
     scene.traverse((object) => {
@@ -2212,6 +2216,9 @@ async function prewarmRendering() {
       if (uploaded % 2 === 0) await new Promise((resolve) => requestAnimationFrame(resolve));
     }
     for (let roomId = 0; roomId < world.rooms.length; roomId++) {
+      $('loading-detail').textContent =
+        `PREPARANDO ILUMINACIÓN / ${roomId + 1} DE ${world.rooms.length}`;
+      await new Promise((resolve) => requestAnimationFrame(resolve));
       roomRendering.update(roomId);
       world.creature.visible = true;
       world.creature.position.copy(world.worldPoint(roomId, new THREE.Vector3(0, 0, 0)));
@@ -2226,7 +2233,7 @@ async function prewarmRendering() {
       flashlight.intensity = 78;
       flashlight.position.copy(eye);
       flashlight.target.position.copy(world.worldPoint(roomId, new THREE.Vector3(0, 1.5, -2)));
-      await renderer.compileAsync(scene, camera);
+      await prepareShaders(renderer, scene, camera);
       renderer.setRenderTarget(smallTarget);
       renderer.render(scene, camera);
       renderer.setRenderTarget(oldTarget);
@@ -2246,7 +2253,7 @@ async function prewarmRendering() {
       roomRendering.update(0);
       camera.position.set(0, 1.68, 1.5);
       camera.quaternion.identity();
-      await renderer.compileAsync(scene, camera);
+      await prepareShaders(renderer, scene, camera);
       renderer.setRenderTarget(smallTarget);
       renderer.render(scene, camera);
     } finally {
@@ -2256,6 +2263,7 @@ async function prewarmRendering() {
     renderer.setRenderTarget(oldTarget);
     smallTarget.dispose();
     for (const [object, flag] of frustumFlags) object.frustumCulled = flag;
+    renderer.shadowMap.autoUpdate = oldShadowUpdate;
     world.creature.visible = oldCreature;
     world.watcher.visible = oldWatcher;
     flashlight.intensity = 0;
@@ -2391,7 +2399,7 @@ function frame(now) {
   else if (mode === 'playing' && state.room === 0) broadcast(frameTime);
   // Stable light set + one preallocated shadow map throughout all crossings.
   const activeRoom = titleViewActive() ? 0 : (transition?.field ?? state.room);
-  roomRendering.update(activeRoom, transition);
+  roomRendering.update(activeRoom, transition, camera.position);
   // Room-local shader uniforms handle darkness; never dim the whole scene just
   // because the occupied room or camera has changed.
   ambient.intensity = 0.18;

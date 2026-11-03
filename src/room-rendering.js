@@ -19,23 +19,31 @@ export class RoomRendering {
       ...world.rooms.map((room) => ({ ids: [room.id], sources: room.lights })),
       ...world.connectors.map((c) => ({ ids: [c.link.a, c.link.b], sources: c.lights ?? [] }))
     ];
-    this.points = regions.flatMap((region) =>
+    this.sources = regions.flatMap((region) =>
       region.sources.map((source) => {
         source.light.visible = false;
-        const light = source.light.clone();
-        light.visible = true;
-        light.position.copy(source.light.getWorldPosition(new Vector3()));
-        scene.add(light);
-        return { rooms: region.ids, source, light };
+        return {
+          rooms: region.ids,
+          source,
+          position: source.light.getWorldPosition(new Vector3())
+        };
       })
     );
+    // Ocho focos reutilizables: el shader no calcula las luces de toda la casa.
+    this.points = Array.from({ length: Math.min(8, this.sources.length) }, () => {
+      const light = this.sources[0].source.light.clone();
+      light.visible = true;
+      light.intensity = 0;
+      scene.add(light);
+      return { light };
+    });
     this.shadow = world.rooms[0].bulb.shadow.clone();
     this.shadow.visible = true;
     this.shadow.target = new Object3D();
     scene.add(this.shadow, this.shadow.target);
     for (const room of world.rooms) room.bulb.shadow.visible = false;
   }
-  update(activeRoom, transition = null) {
+  update(activeRoom, transition = null, eye = null) {
     setExteriorVisible(this.world, activeRoom === 0);
     const visible = new Set(
       this.world.rooms.filter((room) => Math.abs(room.id - activeRoom) <= 1).map((room) => room.id)
@@ -45,9 +53,22 @@ export class RoomRendering {
       visible.add(transition.link.b);
     }
     for (const room of this.world.rooms) room.group.visible = visible.has(room.id);
-    for (const { rooms, source, light } of this.points) {
-      light.intensity = rooms.every((id) => visible.has(id)) ? source.light.intensity : 0;
-      light.color.copy(source.light.color);
+    const origin = eye ?? this.world.rooms[activeRoom].group.localToWorld(new Vector3(0, 1.68, 0));
+    const candidates = this.sources.filter(({ rooms }) => rooms.every((id) => visible.has(id)));
+    const score = ({ rooms, source, position }) =>
+      position.distanceToSquared(origin) / Math.max(1, source.light.distance ** 2) +
+      (rooms.includes(activeRoom) ? 0 : 2);
+    candidates.sort((a, b) => score(a) - score(b));
+    for (let i = 0; i < this.points.length; i++) {
+      const { light } = this.points[i];
+      const candidate = candidates[i];
+      light.intensity = candidate?.source.light.intensity ?? 0;
+      if (!candidate) continue;
+      const source = candidate.source.light;
+      light.position.copy(candidate.position);
+      light.color.copy(source.color);
+      light.distance = source.distance;
+      light.decay = source.decay;
     }
     const source = this.world.rooms[activeRoom].bulb.shadow;
     this.shadow.position.copy(source.getWorldPosition(new Vector3()));
