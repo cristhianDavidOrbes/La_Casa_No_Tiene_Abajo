@@ -4,7 +4,7 @@ from mathutils import Vector
 import bpy
 
 ROOT = Path(__file__).resolve().parent.parent
-OUTPUT = ROOT / 'public/assets/broadcasts'
+OUTPUT = ROOT / 'public/images/instructions'
 OUTPUT.mkdir(parents=True, exist_ok=True)
 
 def material(name, color):
@@ -22,7 +22,7 @@ def box(name, location, scale, color):
 
 def asset(relative, height, location):
     before = set(bpy.data.objects)
-    bpy.ops.import_scene.gltf(filepath=str(ROOT / 'public/assets' / relative))
+    bpy.ops.import_scene.gltf(filepath=str(ROOT / 'public/models' / relative))
     objects = set(bpy.data.objects) - before
     root = bpy.data.objects.new('asset', None)
     bpy.context.collection.objects.link(root)
@@ -57,7 +57,7 @@ for shot in ['fusible', 'panel', 'televisor', 'radio']:
     box('suelo', (0, 0, -.04), (5, 5, .08), (.12, .07, .035))
     if shot == 'fusible':
         asset('haven/side_table_01/side_table_01.gltf', .75, (0, 0, 0))
-        asset('downloaded/ceramic-fuse.glb', .16, (.02, -.04, .79))
+        asset('props/ceramic-fuse.glb', .16, (.02, -.04, .79))
         eye, target = (1.0, -1.3, 1.42), (0, 0, .68)
     elif shot == 'panel':
         asset('haven/power_box_01/power_box_01.gltf', .85, (0, .25, .85))

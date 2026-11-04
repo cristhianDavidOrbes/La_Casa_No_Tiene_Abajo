@@ -34,13 +34,13 @@ try {
       $speaker.SetOutputToNull()
       [IO.File]::WriteAllText((Join-Path $project "$prefix.txt"), ($shot[1] + "`n" + $shot[2]), (New-Object Text.UTF8Encoding($false)))
       $filter = "scale=768:432:force_original_aspect_ratio=decrease,pad=768:576:(ow-iw)/2:0:color=0x0b1510,setsar=1,noise=alls=3:allf=t,drawtext=fontfile='C\:/Windows/Fonts/cour.ttf':textfile='$prefix.txt':fontcolor=0xd7d6b9:fontsize=24:x=(w-tw)/2:y=472:line_spacing=14"
-      & ffmpeg -hide_banner -loglevel error -y -loop 1 -framerate 15 -i "public/assets/broadcasts/instruccion-$($shot[0]).png" -i "$prefix.wav" -vf $filter -af 'highpass=f=150,lowpass=f=3500,apad=pad_dur=0.8,alimiter=limit=0.8' -c:v libx264 -preset fast -crf 25 -pix_fmt yuv420p -c:a aac -b:a 96k -shortest -movflags +faststart "$prefix.mp4"
+      & ffmpeg -hide_banner -loglevel error -y -loop 1 -framerate 15 -i "public/images/instructions/instruccion-$($shot[0]).png" -i "$prefix.wav" -vf $filter -af 'highpass=f=150,lowpass=f=3500,apad=pad_dur=0.8,alimiter=limit=0.8' -c:v libx264 -preset fast -crf 25 -pix_fmt yuv420p -c:a aac -b:a 96k -shortest -movflags +faststart "$prefix.mp4"
       if ($LASTEXITCODE -ne 0) { throw "Fallo al preparar $prefix" }
       $clips += "file '$channel-$index.mp4'"
       $index++
     }
     [IO.File]::WriteAllLines((Join-Path $project 'work/broadcast-refresh/clips.txt'), $clips, (New-Object Text.UTF8Encoding($false)))
-    & ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i 'work/broadcast-refresh/clips.txt' -c copy -movflags +faststart "public/assets/broadcasts/canal-$channel.mp4"
+    & ffmpeg -hide_banner -loglevel error -y -f concat -safe 0 -i 'work/broadcast-refresh/clips.txt' -c copy -movflags +faststart "public/videos/canal-$channel.mp4"
     if ($LASTEXITCODE -ne 0) { throw "Fallo al unir canal $channel" }
   }
 } finally { $speaker.Dispose() }

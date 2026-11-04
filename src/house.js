@@ -49,46 +49,48 @@ const house = [
 let wood, plaster, carpet;
 export async function loadAssets(progress) {
   const list = [
-    ...furniture.map((n) => [n, 'models/' + n + '.glb']),
+    ...furniture.map((n) => [n, 'furniture/' + n.toLowerCase() + '.glb']),
     ...station.map((n) => ['s-' + n, 'station/' + n + '.glb']),
-    ...haven.map((n) => ['h-' + n, 'haven/' + n + '/' + n + '.gltf']),
-    ['fuse', 'downloaded/ceramic-fuse.glb'],
-    ['changingLocker', 'downloaded/changing-locker.glb'],
+    ...haven.map((n) => ['h-' + n, 'haven/' + n.toLowerCase() + '/' + n.toLowerCase() + '.gltf']),
+    ['fuse', 'props/ceramic-fuse.glb'],
+    ['changingLocker', 'props/changing-locker.glb'],
     ['book-stendec', 'books/book-stendec.glb']
   ];
   let done = 0;
   const total = list.length + 14 + house.length;
   await loadPool(list, async ([name, file]) => {
-    models[name] = (await loadWithRetry('/assets/' + file, (url) => loader.loadAsync(url))).scene;
+    models[name] = (await loadWithRetry('/models/' + file, (url) => loader.loadAsync(url))).scene;
     progress(++done, total);
   });
   // Semanas 7 y 8: los módulos ya están exportados; no se convierten al jugar.
   await loadPool(house, async (name) => {
     models['house-' + name] = (
-      await loadWithRetry('/assets/house/' + name + '.glb', (url) => loader.loadAsync(url))
+      await loadWithRetry('/models/house/' + name.toLowerCase() + '.glb', (url) =>
+        loader.loadAsync(url)
+      )
     ).scene;
     progress(++done, total);
   });
-  const vhsMaterials = await loadWithRetry('/assets/downloaded/VHS_cassette.mtl', (url) =>
-    new MTLLoader().setResourcePath('/assets/downloaded/').loadAsync(url)
+  const vhsMaterials = await loadWithRetry('/models/props/vhs_cassette.mtl', (url) =>
+    new MTLLoader().setResourcePath('/models/props/').loadAsync(url)
   );
-  models.vhs = await loadWithRetry('/assets/downloaded/VHS_cassette.obj', (url) =>
+  models.vhs = await loadWithRetry('/models/props/vhs_cassette.obj', (url) =>
     new OBJLoader().setMaterials(vhsMaterials).loadAsync(url)
   );
   progress(++done, total);
   models.creature = (
-    await loadWithRetry('/assets/creature/el-inquilino-tripo-repaired.glb', (url) =>
+    await loadWithRetry('/models/creature/el-inquilino-tripo-repaired.glb', (url) =>
       loader.loadAsync(url)
     )
   ).scene;
   progress(++done, total);
-  models.paper = await loadWithRetry('/assets/downloaded/letter-paper.obj', (url) =>
+  models.paper = await loadWithRetry('/models/props/letter-paper.obj', (url) =>
     new OBJLoader().loadAsync(url)
   );
   progress(++done, total);
   const paperMaps = await Promise.all(
     ['diff', 'normal'].map(async (name) => {
-      const t = await loadWithRetry('/assets/downloaded/letter-paper-' + name + '.png', (url) =>
+      const t = await loadWithRetry('/textures/props/letter-paper-' + name + '.png', (url) =>
         new THREE.TextureLoader().loadAsync(url)
       );
       if (name === 'diff') t.colorSpace = THREE.SRGBColorSpace;
@@ -119,7 +121,7 @@ export async function loadAssets(progress) {
       'rug-Rough'
     ],
     async (name) => {
-      const t = await loadWithRetry('/assets/textures/' + name + '.jpg', (url) =>
+      const t = await loadWithRetry('/textures/materials/' + name.toLowerCase() + '.jpg', (url) =>
         new THREE.TextureLoader().loadAsync(url)
       );
       t.wrapS = t.wrapT = THREE.RepeatWrapping;

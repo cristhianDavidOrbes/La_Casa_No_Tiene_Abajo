@@ -1,0 +1,61 @@
+RECURSOS DEL JUEGO Y PROCEDENCIA
+
+Los recursos que se indican son CC0. El monstruo Tripo aportado por el usuario y las librerías MIT son excepciones; no se declaran CC0.
+
+Furniture Kit 2 / Kenney: https://kenney.nl/assets/furniture-kit
+Space Station Kit / Kenney: https://kenney.nl/assets/space-station-kit
+Modular House / Keith, Fertile Soil Productions: https://opengameart.org/content/modular-house-3d-models
+Television 02 / Benny Weimer: https://polyhaven.com/a/television_02
+ArmChair 01 / Kirill Sannikov: https://polyhaven.com/a/ArmChair_01
+Vintage Cabinet 01 / Rico Cilliers: https://polyhaven.com/a/vintage_cabinet_01
+Side Table 01 / James Ray Cock: https://polyhaven.com/a/side_table_01
+Wooden Bookshelf Worn / Ulan Cabanilla: https://polyhaven.com/a/wooden_bookshelf_worn
+Vintage Radio Transceiver / Mateusz Sadek: https://polyhaven.com/a/vintage_radio_transceiver
+Power Box 01 / Rico Cilliers, Yann Kervran: https://polyhaven.com/a/power_box_01
+Paper Debris / Paul Wortmann: https://opengameart.org/content/3d-dungeon-debris-paper
+Hanging Industrial Lamp / Kuutti Siitonen: https://polyhaven.com/a/hanging_industrial_lamp
+Wooden Table 02 / Serhii Khromov: https://polyhaven.com/a/wooden_table_02
+Painted Wooden Chair 01 / Kuutti Siitonen: https://polyhaven.com/a/painted_wooden_chair_01
+Vintage Video Camera / James Ray Cock, Jenelle van Heerden: https://polyhaven.com/a/vintage_video_camera
+VHS Cassette / GGBotNet: https://opengameart.org/content/vhs-cassette-3d
+Ceramic Fuse / catálogo 3DAssets.dev: https://3dassets.dev/assets/scavengers-loot-library-ceramic-fuse-039023e8
+Changing Locker / catálogo 3DAssets.dev: https://3dassets.dev/assets/squash-club-and-racket-workshop-changing-locker-ae30f1aa
+Vintage Flashlight / Omar M. El-Safy, Poly Haven: https://polyhaven.com/a/vintage_flashlight
+Book / stendec: https://blendswap.com/blend/6154 (portadas recoloreadas en tiempo de ejecución).
+
+TEXTURAS
+Wood Floor: https://polyhaven.com/a/wood_floor
+Painted Plaster Wall: https://polyhaven.com/a/painted_plaster_wall
+Dirty Carpet: https://polyhaven.com/a/dirty_carpet
+Abandoned Hall HDR 1K: https://polyhaven.com/a/abandoned_hall_01
+Forest Floor: https://polyhaven.com/a/forest_floor
+Asphalt 02: https://polyhaven.com/a/asphalt_02
+
+EXTERIOR
+Protagonista animado / Quaternius: https://quaternius.com/packs/ultimatemodularcharacters.html
+Casa vecina / Kenney: https://kenney.nl/assets/city-kit-suburban
+Casa principal adaptada de los módulos de Keith / Modular House.
+
+SONIDOS
+Pasos e impactos / Kenney: https://kenney.nl/assets/impact-sounds
+Ambiente / congusbongus: https://opengameart.org/content/abandoned-passages-horror-ambience-loop
+Golpes de terror y aparición 09 / psychhead_: https://opengameart.org/content/horror-hit-soundpack-1
+Grito y jumpscare 17 / Vinrax: https://opengameart.org/content/horror-scream1
+Susurros / Joseph SARDIN y Axeline T: https://bigsoundbank.com/whisper-1-s3255.html
+Rebobinado / Joseph SARDIN: https://bigsoundbank.com/audio-cassette-back-7-s2160.html
+Procesamiento y licencias detallados en audio/radio-rewind-license.txt.
+
+IMÁGENES Y VÍDEOS
+Fotografía VHS / fluorinated2020, CC0: https://commons.wikimedia.org/wiki/File:VHS_cassette.png
+Las imágenes del fusible y del cuadro eléctrico fueron proporcionadas por el usuario.
+Las imágenes de radio y televisor se renderizaron con los modelos CC0 del juego.
+Las emisiones y su narración son contenido propio del proyecto, generado localmente con Microsoft Helena y FFmpeg.
+La cámara del canal 4 renderiza otra habitación, sin vídeo ni voz descargados.
+
+EXCEPCIONES
+models/creature/el-inquilino-tripo-repaired.glb: modelo Tripo proporcionado por el usuario; rig reparado de 55 huesos, sin afirmar licencia CC0.
+Three.js, cannon-es, Vite y Prettier: MIT, con las licencias de sus paquetes.
+Los archivos del profesor son referencias locales y no se publican.
+
+Licencia CC0: https://creativecommons.org/publicdomain/zero/1.0/
+Poly Haven: https://polyhaven.com/license

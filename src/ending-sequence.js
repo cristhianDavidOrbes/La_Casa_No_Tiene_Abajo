@@ -433,7 +433,7 @@ export class EndingSequence {
     this.crt.uniforms.power.value = 1;
     this.crt.uniforms.vertical.value = 1;
     this.crt.uniforms.horizontal.value = 1;
-    this.audio?.play('impactWood_heavy_000', 0.16, 0.58, V(-3.2, 1.1, 6));
+    this.audio?.play('impactwood_heavy_000', 0.16, 0.58, V(-3.2, 1.1, 6));
     this.update(0);
   }
 
@@ -517,7 +517,7 @@ export class EndingSequence {
     if (t >= 13.08)
       this.once('door-close', () => {
         this.world.entryDoor.setOpen(false);
-        this.audio?.play('impactWood_heavy_000', 0.34, 0.8, V(-3.2, 1.1, 6));
+        this.audio?.play('impactwood_heavy_000', 0.34, 0.8, V(-3.2, 1.1, 6));
       });
     // The camera reaches the exterior before the protagonist begins moving.
     if (t < 3.8) {
@@ -572,7 +572,7 @@ export class EndingSequence {
       this.crt.uniforms.horizontal.value = 1 - smooth(phase(t, 31.45, 31.85));
       this.crt.uniforms.power.value = 1 - smooth(phase(t, 31.65, 32.15));
       this.once('tv-off', () =>
-        this.audio?.play('impactMetal_medium_000', 0.16, 1.35, this.screen.center)
+        this.audio?.play('impactmetal_medium_000', 0.16, 1.35, this.screen.center)
       );
       const dim = 1 - 0.78 * smooth(phase(t, 31.2, 33));
       for (const saved of this.saved.lights) {

@@ -26,7 +26,6 @@ import {
 import { puzzleSolved, puzzleOrder, CLUE_ROOMS } from './orientation-puzzle.js';
 import { chooseSpawnRoom, spawnPoint } from './environment-navigation.js';
 import {
-  HauntDirector,
   UnseenRetirement,
   isCreatureObserved,
   CAPTURE_DURATION,
@@ -153,7 +152,6 @@ let subtitleTime = 0,
   enemy = null,
   danger = 0,
   saveTimer = 0;
-const haunts = new HauntDirector();
 let retirement = new UnseenRetirement(),
   captureAge = 0,
   captureView = null,
@@ -366,7 +364,6 @@ function resetEphemeral() {
     prop.root.material.dispose();
   }
   radioDebris = [];
-  haunts.reset();
   retirement = new UnseenRetirement();
   captureAge = 0;
   rearHaunt = null;
@@ -569,8 +566,8 @@ function instructions() {
  <p><b>WASD / flechas</b> caminar · <b>Ratón</b> mirar<br><b>E</b> interactuar, abrir casillero, entrar o salir · <b>Shift</b> correr · <b>Espacio</b> saltar<br><b>F</b> destello tras recoger la linterna (un uso) · <b>J</b> registro · <b>H</b> recordar · <b>Esc</b> pausa</p>
  <p>Encontrarás dos casilleros en habitaciones interiores. Puedes abrir uno con E y meterte; el Inquilino investigará la última habitación donde te vio y buscará en los cuartos vecinos. La linterna está sobre la mesa del archivo: F emite un solo destello breve y un acierto lo aturde tres segundos. Mantener F no repite el destello. En una persecución, a veces se acerca caminando y otras trepa hacia el techo. Puedes reducir el balanceo, el titileo y el efecto VHS desde los ajustes. Las notas pausan el juego.</p>
  <p>Modelos descargados CC0: <a href="https://polyhaven.com/license" target="_blank" rel="noreferrer">Poly Haven</a>, <a href="https://kenney.nl/assets/furniture-kit" target="_blank" rel="noreferrer">Kenney</a>, <a href="https://opengameart.org/content/modular-house-3d-models" target="_blank" rel="noreferrer">Modular House / Keith</a>, <a href="https://opengameart.org/content/vhs-cassette-3d" target="_blank" rel="noreferrer">VHS / GGBotNet</a>, <a href="https://3dassets.dev/assets/squash-club-and-racket-workshop-changing-locker-ae30f1aa" target="_blank" rel="noreferrer">Changing Locker / 3DAssets.dev</a> y <a href="https://polyhaven.com/a/vintage_flashlight" target="_blank" rel="noreferrer">Vintage Flashlight / Omar M. El-Safy</a>. Algunos modelos externos declaran generación con IA; fueron descargados ya existentes. El Inquilino utiliza el modelo Tripo proporcionado por el usuario.</p>
- <p>Sonidos de terror CC0 de OpenGameArt: <a href="https://opengameart.org/content/abandoned-passages-horror-ambience-loop" target="_blank" rel="noreferrer">Abandoned passages / congusbongus</a>, <a href="https://opengameart.org/content/horror-hit-soundpack-1" target="_blank" rel="noreferrer">Horror Hit Soundpack 1 / psychhead_</a>, <a href="https://opengameart.org/content/horror-scream1" target="_blank" rel="noreferrer">Horror scream1 / Vinrax</a> y <a href="https://opengameart.org/content/ghost-monster-voice-moaning-growling" target="_blank" rel="noreferrer">Ghost Monster Voice / qubodup</a>. Procedencia completa en docs/ASSETS_Y_LICENCIAS.md y docs/SONIDOS_TERROR_CC0.md.</p>
- <p>Final exterior CC0: protagonista con rig y animaciones de <a href="https://quaternius.com/packs/ultimatemodularcharacters.html" target="_blank" rel="noreferrer">Quaternius</a>, casas y carreteras de <a href="https://kenney.nl/assets/city-kit-suburban" target="_blank" rel="noreferrer">Kenney</a>, casa principal adaptada de Modular House y suelo <a href="https://polyhaven.com/a/forest_floor" target="_blank" rel="noreferrer">Forest Floor / Poly Haven</a>. La cinta y el televisor son los mismos modelos de la partida. Detalles en docs/ASSETS_FINAL_CC0.md.</p>
+ <p>Audio CC0: <a href="https://kenney.nl/assets/impact-sounds" target="_blank" rel="noreferrer">Kenney</a>, <a href="https://opengameart.org/content/abandoned-passages-horror-ambience-loop" target="_blank" rel="noreferrer">congusbongus</a>, <a href="https://opengameart.org/content/horror-hit-soundpack-1" target="_blank" rel="noreferrer">psychhead_</a>, <a href="https://opengameart.org/content/horror-scream1" target="_blank" rel="noreferrer">Vinrax</a> y <a href="https://bigsoundbank.com/whisper-1-s3255.html" target="_blank" rel="noreferrer">Joseph SARDIN y Axeline T</a>. Procedencia en <a href="/licenses/recursos.txt" target="_blank" rel="noreferrer">recursos y licencias</a>.</p>
+ <p>Final exterior CC0: protagonista con rig y animaciones de <a href="https://quaternius.com/packs/ultimatemodularcharacters.html" target="_blank" rel="noreferrer">Quaternius</a>, casas de <a href="https://kenney.nl/assets/city-kit-suburban" target="_blank" rel="noreferrer">Kenney</a>, casa principal adaptada de Modular House y asfalto <a href="https://polyhaven.com/a/asphalt_02" target="_blank" rel="noreferrer">Asphalt 02 / Poly Haven</a>, además del suelo <a href="https://polyhaven.com/a/forest_floor" target="_blank" rel="noreferrer">Forest Floor / Poly Haven</a>. La cinta y el televisor son los mismos modelos de la partida. Procedencia en <a href="/licenses/recursos.txt" target="_blank" rel="noreferrer">recursos y licencias</a>.</p>
  <p class="small">Historia, interfaz y emisiones narradas: contenido del proyecto. El juego funciona localmente, sin conexión ni servicios de IA durante la partida. No recopila datos ni publica el proyecto.</p>`
   );
 }
@@ -872,7 +869,7 @@ function circuitDialog() {
             'NO COINCIDE. Observa las sillas y sigue el orden de habitaciones.';
           $('circuit-feedback').classList.add('error');
           renderSlots();
-          audio.knock(world.worldPoint(2, new THREE.Vector3(-2.7, 1.4, -3.75)));
+          audio.tone(180, 0.15, 0.04);
         }
       } else {
         $('circuit-feedback').textContent = nextPrompt();
@@ -907,7 +904,7 @@ function exitDialog() {
   const door = world.entryDoor;
   door.setOpen(!door.target, player.z > 6);
   audio.play(
-    'impactWood_heavy_000',
+    'impactwood_heavy_000',
     0.15,
     0.62,
     world.worldPoint(0, new THREE.Vector3(-3.2, 1.2, 6))
@@ -1048,7 +1045,7 @@ function enterLocker(locker) {
   show('locker-view');
   show('interact', true);
   $('interact').querySelector('span').textContent = 'Salir del casillero';
-  audio.play('impactWood_heavy_000', 0.17, 0.7);
+  audio.play('impactwood_heavy_000', 0.17, 0.7);
   subtitle('«Está cerca. Debo esperar hasta que se aleje.»', 4);
   updateCamera(0);
 }
@@ -1064,7 +1061,7 @@ function leaveLocker() {
   lockerSearch.emerge();
   show('locker-view', false);
   keys.clear();
-  audio.play('impactWood_heavy_000', 0.12, 0.85);
+  audio.play('impactwood_heavy_000', 0.12, 0.85);
   updateCamera(0);
 }
 
@@ -1475,50 +1472,12 @@ function spawnEnemy(forcedRoom = null) {
   if (room === null) return;
   enemy = new Pursuer(room, spawnPoint(world.rooms[room]));
   collisionTree = collisionWorld(world.rooms, state);
-  haunts.reset();
   retirement = new UnseenRetirement();
   world.creatureMotion.reset();
   world.creature.visible = true;
   world.creature.position.copy(enemy.position);
   world.creature.quaternion.copy(enemy.rotation);
   refreshHUD();
-}
-function updateEncounters(dt) {
-  const event = haunts.update(dt, { state, roomTime, observed: false });
-  for (const room of world.rooms) room.hauntPower = 1;
-  if (!event) return;
-  const room = world.rooms[event.room],
-    t = event.age;
-  if (event.started) {
-    audio.haunt(
-      ['knock', 'drag', 'whisper', 'whisper'][event.room],
-      world.worldPoint(event.room, new THREE.Vector3(-3.6, 2, 2.7))
-    );
-    subtitle(
-      [
-        'Los golpes vienen de dentro del muro.',
-        'Algo está arrastrándose encima de mí.',
-        'Una voz repite mis pasos con retraso.',
-        'La casa respira detrás de los libros.'
-      ][event.room],
-      5
-    );
-  }
-  room.hauntPower = comfort ? 0.78 : t < 1.1 ? 0.12 + 0.5 * Math.abs(Math.sin(t * 13)) : 1;
-  if (event.kind === 'drag' && Math.floor(t * 4) !== Math.floor((t - dt) * 4))
-    audio.play(
-      'footstep_wood_002',
-      0.13,
-      0.48,
-      world.worldPoint(event.room, new THREE.Vector3(2 - t * 0.6, 3.8, 2.8))
-    );
-  if (event.kind === 'figure' && Math.floor(t * 5) !== Math.floor((t - dt) * 5))
-    audio.tone(
-      77 + t * 6,
-      0.17,
-      0.018,
-      world.worldPoint(event.room, new THREE.Vector3(-3.6, 2, 2.7))
-    );
 }
 function updateWatcherHead(dt) {
   const watcher = world.watcher;
@@ -1577,7 +1536,6 @@ function updateWatcherHead(dt) {
       collisionTree
     );
   const event = watcherHead.update(dt, { state, roomTime, observed });
-  if (event === 'noticed') audio.haunt('whisper', head);
   if (event === 'hidden') {
     state.haunts.push(WATCHER_HEAD_ID);
     persist();
@@ -1596,7 +1554,6 @@ function updateRearHaunt(dt) {
     rearHaunt = new RearApparition(player, backward, world.rooms[state.room]);
     world.creatureMotion.reset();
     world.creatureMotion.bipedal = 1;
-    audio.haunt('whisper', world.worldPoint(state.room, rearHaunt.local));
     subtitle('La luz acaba de parpadear. Hay algo detrás de mí.', 4.5);
   }
   if (!rearHaunt) {
@@ -1660,21 +1617,19 @@ function updateRearHaunt(dt) {
     rearHaunt = null;
     world.creature.visible = false;
     danger = 0;
-    audio.haunt('whisper', position);
   }
 }
 function updateHorror(dt) {
   if (mode !== 'playing') return;
   if (!collisionTree) collisionTree = collisionWorld(world.rooms, state);
+  for (const room of world.rooms) room.hauntPower = 1;
   if (!enemy) {
     danger = 0;
-    updateEncounters(dt);
     updateWatcherHead(dt);
     updateRearHaunt(dt);
     return;
   }
   world.watcher.visible = false;
-  for (const room of world.rooms) room.hauntPower = 1;
   if (state.inserted) {
     // A watched creature must never be deleted in front of the player.
     if (enemy.physicsActor) {
@@ -1695,7 +1650,7 @@ function updateHorror(dt) {
       collisionTree.removeCharacter(enemy.physicsActor);
       enemy = null;
       danger = 0;
-      audio.play('impactWood_heavy_000', 0.15, 0.4);
+      audio.play('impactwood_heavy_000', 0.15, 0.4);
     }
     return;
   }
@@ -1756,13 +1711,11 @@ function updateHorror(dt) {
     think(
       'Está en la casa. Si encontré la linterna, solo tengo un destello; también puedo esconderme en un casillero.'
     );
-    audio.knock(center);
   }
   anomalyTime += dt;
   if (anomalyTime > 1.4 && enemy.speed > 0.1) {
     anomalyTime = 0;
     audio.play('footstep_concrete_001', 0.24, 0.58, center);
-    audio.monster(center);
   }
   if (!hiddenLocker && dist < 1.3 && clear && enemy.delay <= 0 && enemy.stunRemaining <= 0)
     caught();
@@ -2506,7 +2459,7 @@ try {
 } catch (error) {
   console.error(error);
   const message =
-    'No se pudo cargar el recurso indicado. Mantén el servidor local abierto (npm run dev o INICIAR_JUEGO.cmd) y recarga con Ctrl+F5. ' +
+    'No se pudo cargar el recurso indicado. Mantén el servidor local abierto (npm run dev o iniciar_juego.cmd) y recarga con Ctrl+F5. ' +
     String(error.message).replace(/[<>]/g, '');
   $('load-status').textContent = message;
   $('load-status').classList.add('error');

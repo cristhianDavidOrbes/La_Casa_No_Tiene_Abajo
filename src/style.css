@@ -820,7 +820,7 @@ blockquote {
   position: relative;
   background:
     linear-gradient(130deg, #8c6e3e22, transparent 60%),
-    url('/assets/ui/aged-metal.png') center/680px auto,
+    url('/images/ui/aged-metal.png') center/680px auto,
     #211f16;
   border: 2px solid #8d744c;
   border-radius: 6px;
@@ -1183,8 +1183,8 @@ blockquote {
     0 0 0 1px #746141,
     inset 0 0 0 2px #302f25,
     0 9px 15px #0009;
-  padding: 20px 17px 13px;
-  margin: 20px 0 27px;
+  padding: 10px 12px 9px;
+  margin: 14px 0 16px;
 }
 .cassette-deck::before,
 .cassette-deck::after {
@@ -1204,9 +1204,10 @@ blockquote {
 }
 .cassette-window {
   position: relative;
-  width: 100%;
+  width: min(100%, calc(max(170px, 100dvh - 515px) * 1.4935));
+  margin-inline: auto;
   aspect-ratio: 687 / 460;
-  background: url('/assets/rewind/vhs-cc0.png') center / contain no-repeat;
+  background: url('/images/rewind/vhs-cc0.png') center / contain no-repeat;
 }
 .vhs-window {
   position: absolute;
@@ -1288,16 +1289,6 @@ blockquote {
 .tape-left {
   --roll-size: 46%;
 }
-.tape-band {
-  position: absolute;
-  bottom: 22px;
-  left: 12%;
-  right: 12%;
-  height: 4px;
-  background: #4b2f1d;
-  box-shadow: 0 1px 3px #000;
-  z-index: 0;
-}
 .cassette-label {
   position: absolute;
   left: 28%;
@@ -1310,7 +1301,8 @@ blockquote {
   flex-direction: column;
   justify-content: center;
   text-align: center;
-  padding: 8px;
+  padding: 4px;
+  line-height: 1.1;
   border: 2px solid #5d472f;
   background:
     radial-gradient(ellipse at top left, #9f703944, transparent 50%),
@@ -1326,31 +1318,18 @@ blockquote {
 }
 .cassette-label strong {
   font:
-    italic clamp(20px, 3vw, 36px) / 1.05 'Palatino Linotype',
+    italic clamp(12px, 2vh, 25px) / 1.05 'Palatino Linotype',
     Georgia,
     serif;
   transform: rotate(-4deg);
   font-weight: 400;
-  margin: 12px 0;
+  margin: 4px 0;
 }
 .cassette-label small {
   font:
     7px 'Courier New',
     monospace;
   letter-spacing: 0.06em;
-}
-.rewind-arrow {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 3;
-  pointer-events: none;
-  color: #f0be71;
-  filter: drop-shadow(0 0 4px #e4aa4555);
-}
-.rewind-machine.winding .rewind-arrow {
-  opacity: 0.3;
 }
 .cassette-marking {
   display: flex;
@@ -1431,7 +1410,7 @@ blockquote {
   padding: 30px 34px;
   background:
     linear-gradient(125deg, #8c6e3e15, transparent 65%),
-    url('/assets/ui/aged-metal.png') center/640px auto,
+    url('/images/ui/aged-metal.png') center/640px auto,
     #1d1d14;
   border: 4px solid #77603e;
   max-height: 92vh;

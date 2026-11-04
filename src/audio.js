@@ -4,16 +4,14 @@ import { Audio, AudioContext as ThreeAudioContext, AudioListener, PositionalAudi
 const FILES = [
   ...Array.from({ length: 5 }, (_, i) => `footstep_wood_00${i}`),
   ...Array.from({ length: 5 }, (_, i) => `footstep_concrete_00${i}`),
-  'impactWood_heavy_000',
-  'impactMetal_medium_000',
-  'impactGlass_light_000',
+  'impactwood_heavy_000',
+  'impactmetal_medium_000',
+  'impactglass_light_000',
   'horror_ambience',
   'horror_hit_low',
   'horror_hit_high',
   'horror_hit_mid',
   'horror_scream',
-  'horror_ghost_01',
-  'horror_ghost_05',
   'jumpscare_chosen_17',
   'rear_chosen_09',
   'radio_whispers',
@@ -29,7 +27,6 @@ export class Soundscape {
     this.ready = false;
     this.preloading = null;
     this.preparing = null;
-    this.nextVoice = 0;
     this.duckUntil = 0;
   }
   preload() {
@@ -37,7 +34,7 @@ export class Soundscape {
       this.preloading = Promise.all(
         FILES.map(async (name) => {
           try {
-            const response = await fetch('/assets/audio/' + name + '.ogg');
+            const response = await fetch('/sounds/' + name + '.ogg');
             if (!response.ok) throw new Error(response.status);
             return [name, await response.arrayBuffer()];
           } catch (error) {
@@ -187,8 +184,8 @@ export class Soundscape {
   }
   radioBurst(position) {
     this.stopRadioWhispers();
-    this.play('impactMetal_medium_000', 0.65, 0.55, position);
-    this.play('impactGlass_light_000', 0.55, 0.8, position);
+    this.play('impactmetal_medium_000', 0.65, 0.55, position);
+    this.play('impactglass_light_000', 0.55, 0.8, position);
     this.play('horror_hit_high', 0.4, 0.9, position);
     this.tone(48, 0.7, 0.06, position);
   }
@@ -210,28 +207,8 @@ export class Soundscape {
       0.83 + Math.random() * 0.16
     );
   }
-  knock(pos) {
-    this.play('impactWood_heavy_000', 0.6, 0.55, pos);
-  }
   switch() {
-    this.play('impactMetal_medium_000', 0.18, 1.5);
-  }
-  swoosh() {
-    if (!this.ctx || !this.noiseBuffer) return;
-    const s = this.ctx.createBufferSource();
-    s.buffer = this.noiseBuffer;
-    const filter = this.ctx.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(90, this.ctx.currentTime);
-    filter.frequency.exponentialRampToValueAtTime(1500, this.ctx.currentTime + 1);
-    filter.frequency.exponentialRampToValueAtTime(100, this.ctx.currentTime + 3);
-    const g = this.ctx.createGain();
-    g.gain.setValueAtTime(0.001, this.ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.22, this.ctx.currentTime + 1);
-    g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 3);
-    s.connect(filter).connect(g).connect(this.master);
-    s.start();
-    s.stop(this.ctx.currentTime + 3.1);
+    this.play('impactmetal_medium_000', 0.18, 1.5);
   }
   spatialOutput(node, position) {
     if (!position) {
@@ -269,47 +246,6 @@ export class Soundscape {
     o.start();
     o.stop(now + length);
   }
-  haunt(kind = 'knock', position = null) {
-    if (!this.ctx) return;
-    if (kind === 'whisper' && this.buffers.horror_ghost_01) {
-      this.play(
-        Math.random() < 0.5 ? 'horror_ghost_01' : 'horror_ghost_05',
-        0.3,
-        0.88 + Math.random() * 0.12,
-        position
-      );
-      return;
-    }
-    if (kind === 'drag' && this.buffers.horror_hit_low)
-      this.play('horror_hit_low', 0.14, 0.8, position);
-    if (kind === 'knock') this.knock(position);
-    if (kind === 'drag')
-      for (let i = 0; i < 3; i++)
-        setTimeout(() => this.play('footstep_wood_002', 0.2, 0.46, position), i * 230);
-    const now = this.ctx.currentTime,
-      osc = this.ctx.createOscillator(),
-      filter = this.ctx.createBiquadFilter(),
-      gain = this.ctx.createGain();
-    osc.type = kind === 'whisper' ? 'sawtooth' : 'triangle';
-    osc.frequency.setValueAtTime(kind === 'whisper' ? 136 : 61, now);
-    osc.frequency.exponentialRampToValueAtTime(kind === 'whisper' ? 79 : 42, now + 1.8);
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(800, now);
-    filter.frequency.exponentialRampToValueAtTime(120, now + 1.8);
-    gain.gain.setValueAtTime(0.001, now);
-    gain.gain.exponentialRampToValueAtTime(0.055, now + 0.18);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.8);
-    osc.connect(filter).connect(gain);
-    const pan = this.spatialOutput(gain, position);
-    osc.onended = () => {
-      osc.disconnect();
-      filter.disconnect();
-      gain.disconnect();
-      pan?.disconnect();
-    };
-    osc.start(now);
-    osc.stop(now + 1.85);
-  }
   reveal(position) {
     if (this.buffers.rear_chosen_09) {
       this.play('rear_chosen_09', 0.55, 1, position);
@@ -318,83 +254,25 @@ export class Soundscape {
     this.play('horror_hit_mid', 0.34, 1, position);
   }
   throwBooks(position) {
-    this.play('impactWood_heavy_000', 0.5, 0.58, position);
+    this.play('impactwood_heavy_000', 0.5, 0.58, position);
     this.play('horror_hit_low', 0.3, 0.85, position);
-    this.play('impactMetal_medium_000', 0.15, 0.55, position);
+    this.play('impactmetal_medium_000', 0.15, 0.55, position);
   }
   bookLanding(position) {
     if (!this.ctx || this.ctx.currentTime < (this.nextBookImpact ?? 0)) return;
     this.nextBookImpact = this.ctx.currentTime + 0.09;
-    this.play('impactWood_heavy_000', 0.12, 0.85 + Math.random() * 0.25, position);
-  }
-  scream(length = 1.05, level = 0.6) {
-    if (!this.ctx) return;
-    const now = this.ctx.currentTime;
-    for (const [base, mult] of [
-      [610, 1],
-      [840, 0.43],
-      [1180, 0.26]
-    ]) {
-      const oscillator = this.ctx.createOscillator(),
-        band = this.ctx.createBiquadFilter(),
-        gain = this.ctx.createGain();
-      oscillator.type = 'sawtooth';
-      oscillator.frequency.setValueAtTime(base, now);
-      oscillator.frequency.exponentialRampToValueAtTime(base * 0.37, now + length);
-      band.type = 'bandpass';
-      band.frequency.setValueAtTime(base * 1.3, now);
-      band.frequency.exponentialRampToValueAtTime(base * 0.54, now + length);
-      band.Q.value = 4;
-      gain.gain.setValueAtTime(0.001, now);
-      gain.gain.exponentialRampToValueAtTime(level * mult * 0.14, now + 0.09);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + length);
-      oscillator.connect(band).connect(gain).connect(this.master);
-      oscillator.start(now);
-      oscillator.stop(now + length + 0.02);
-    }
+    this.play('impactwood_heavy_000', 0.12, 0.85 + Math.random() * 0.25, position);
   }
   jumpscare(position) {
-    if (this.buffers.jumpscare_chosen_17) {
-      this.duckUntil = this.ctx.currentTime + 3;
-      this.ambienceGain?.gain.setTargetAtTime(0.001, this.ctx.currentTime, 0.025);
-      this.play('jumpscare_chosen_17', 0.72, 1, position);
-      return;
-    }
-    if (this.buffers.horror_scream && this.buffers.horror_hit_low) {
-      this.duckUntil = this.ctx.currentTime + 1.35;
-      this.ambienceGain?.gain.setTargetAtTime(0.001, this.ctx.currentTime, 0.025);
-      this.play('horror_hit_low', 0.48, 1);
-      this.play(Math.random() < 0.5 ? 'horror_hit_high' : 'horror_hit_mid', 0.28, 1);
-      this.play('horror_scream', 0.48, 1);
-      this.tone(52, 1.28, 0.055);
-      return;
-    }
-    this.play('impactWood_heavy_000', 0.72, 0.48);
-    this.play('impactMetal_medium_000', 0.42, 0.29);
-    this.scream(1.15, 0.95);
-    for (const [hz, vol] of [
-      [55, 0.13],
-      [58.2, 0.085],
-      [77.8, 0.075],
-      [116.5, 0.05]
-    ])
-      this.tone(hz, 1.32, vol);
-    this.tone(880, 0.35, 0.12);
-    this.tone(1320, 0.22, 0.09);
-    if (this.ctx && this.noiseBuffer) {
-      const s = this.ctx.createBufferSource();
-      s.buffer = this.noiseBuffer;
-      const filter = this.ctx.createBiquadFilter();
-      filter.type = 'bandpass';
-      filter.frequency.value = 2200;
-      filter.Q.value = 3;
-      const g = this.ctx.createGain();
-      g.gain.setValueAtTime(0.25, this.ctx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.6);
-      s.connect(filter).connect(g).connect(this.master);
-      s.start();
-      s.stop(this.ctx.currentTime + 0.65);
-    }
+    if (!this.ctx) return;
+    this.duckUntil = this.ctx.currentTime + 3;
+    this.ambienceGain?.gain.setTargetAtTime(0.001, this.ctx.currentTime, 0.025);
+    this.play(
+      this.buffers.jumpscare_chosen_17 ? 'jumpscare_chosen_17' : 'horror_scream',
+      0.72,
+      1,
+      position
+    );
   }
   update(camera, room, tension) {
     if (!this.ctx) return;
@@ -421,15 +299,5 @@ export class Soundscape {
         0.5
       );
     }
-  }
-  monster(position, moving = true) {
-    if (!this.ctx || !moving || this.ctx.currentTime < this.nextVoice) return;
-    this.nextVoice = this.ctx.currentTime + 7 + Math.random() * 7;
-    this.play(
-      Math.random() < 0.5 ? 'horror_ghost_01' : 'horror_ghost_05',
-      0.22,
-      0.82 + Math.random() * 0.12,
-      position
-    );
   }
 }

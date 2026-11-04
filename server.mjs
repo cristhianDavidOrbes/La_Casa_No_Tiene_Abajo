@@ -15,6 +15,7 @@ const types = {
   '.gltf': 'model/gltf+json',
   '.ogg': 'audio/ogg',
   '.mp4': 'video/mp4',
+  '.txt': 'text/plain; charset=utf-8',
   '.json': 'application/json'
 };
 if (!fs.existsSync(path.join(root, 'index.html'))) {

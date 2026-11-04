@@ -14,7 +14,7 @@ export async function loadEndingAssets(progress = () => {}) {
     ['neighborHouse', 'neighbor-house.glb']
   ];
   await loadPool(models, async ([key, file]) => {
-    assets[key] = await loadWithRetry('/assets/ending/' + file, (url) => loader.loadAsync(url));
+    assets[key] = await loadWithRetry('/models/ending/' + file, (url) => loader.loadAsync(url));
     progress(++done, 9);
   });
   assets.ground = {};
@@ -25,7 +25,7 @@ export async function loadEndingAssets(progress = () => {}) {
       ['roughnessMap', 'roughness']
     ],
     async ([slot, name]) => {
-      const texture = await loadWithRetry('/assets/ending/ground_' + name + '.jpg', (url) =>
+      const texture = await loadWithRetry('/textures/ground/ground_' + name + '.jpg', (url) =>
         textureLoader.loadAsync(url)
       );
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
@@ -44,8 +44,9 @@ export async function loadEndingAssets(progress = () => {}) {
       ['arm', 'arm']
     ],
     async ([slot, suffix]) => {
-      const texture = await loadWithRetry('/assets/road/asphalt_02_' + suffix + '_1k.jpg', (url) =>
-        textureLoader.loadAsync(url)
+      const texture = await loadWithRetry(
+        '/textures/road/asphalt_02_' + suffix + '_1k.jpg',
+        (url) => textureLoader.loadAsync(url)
       );
       texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
       texture.repeat.set(44, 2);

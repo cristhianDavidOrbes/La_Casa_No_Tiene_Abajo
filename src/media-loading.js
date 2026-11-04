@@ -21,7 +21,7 @@ export async function loadBroadcasts() {
   const names = ['canal-01', 'canal-02', 'canal-05', 'para-volver'];
   try {
     await loadPool(names, async (name) => {
-      const data = await loadWithRetry('/assets/broadcasts/' + name + '.mp4', async (url) => {
+      const data = await loadWithRetry('/videos/' + name + '.mp4', async (url) => {
         const response = await fetch(url);
         if (!response.ok) throw new Error('HTTP ' + response.status);
         return response.blob();
