@@ -745,7 +745,7 @@ export function createWorld(scene) {
         pivot.add(root);
         pivot.position.set(x + (n - 2) * 0.18, (board * 2.1) / 2.063442 + height / 2, -3.4);
         r3.group.add(pivot);
-        const tint = ['#5b3027', '#324036', '#413129', '#51463a', '#303a42'][(n + row + index) % 5];
+        const tint = ['#28151c', '#17251e', '#1c2230', '#2c241b', '#242127'][(n + row + index) % 5];
         root.traverse((o) => {
           if (o.isMesh) {
             const materials = Array.isArray(o.material) ? o.material : [o.material];
