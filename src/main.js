@@ -76,7 +76,7 @@ renderer.setSize(innerWidth, innerHeight);
 renderer.localClippingEnabled = true;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
-// Actualizar la única sombra hasta 30 veces/s; el resto del juego sigue a su ritmo normal.
+// Una sombra a 15 Hz durante el movimiento; en el menú se conserva su mapa.
 renderer.shadowMap.autoUpdate = false;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
@@ -2227,10 +2227,13 @@ function frame(now) {
   last = now;
   frameTime += dt;
   if (!ready) return;
+  // El sobre tapa la casa: dejar su imagen quieta libera la GPU para la precarga.
+  if (mode === 'letter') return;
   const shadowRoom = transition?.field ?? state.room;
-  if (now >= nextShadowUpdate || shadowRoom !== lastShadowRoom) {
+  const movingShadows = mode === 'playing' || mode === 'caught' || mode === 'cinematic';
+  if (shadowRoom !== lastShadowRoom || (movingShadows && now >= nextShadowUpdate)) {
     renderer.shadowMap.needsUpdate = true;
-    nextShadowUpdate = now + 1000 / 30;
+    nextShadowUpdate = now + 1000 / 15;
     lastShadowRoom = shadowRoom;
   }
   if (mode === 'cinematic' || mode === 'ending') {
@@ -2410,7 +2413,14 @@ try {
   roomRendering.preparedRooms = new Set([0]);
   roomRendering.exteriorPrepared = false;
   roomRendering.update(0);
-  const preparation = new RenderPreparation(renderer, scene);
+  const preparation = new RenderPreparation(
+    renderer,
+    scene,
+    () =>
+      mode !== 'cinematic' &&
+      mode !== 'ending' &&
+      (mode !== 'playing' || (!transition && keys.size === 0 && !enemy))
+  );
   $('loading-detail').textContent = 'PREPARANDO ILUMINACIÓN DE LA SALA';
   await preparation.prepare([world.rooms[0].group], {
     onProgress: (progress) => {
@@ -2420,6 +2430,10 @@ try {
       $('loading-bar').style.width = percent + '%';
     }
   });
+  // Preparar también el primer mapa de sombra antes de habilitar Comenzar.
+  camera.position.set(-3.35, 1.65, 4.4);
+  camera.lookAt(-2.25, 1.5, -3.2);
+  preparation.draw(scene, camera, true);
   ready = true;
   $('start').disabled = false;
   $('start').textContent = 'Comenzar';

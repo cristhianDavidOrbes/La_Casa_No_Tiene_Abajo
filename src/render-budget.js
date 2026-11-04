@@ -2,7 +2,8 @@
 export class RenderBudget {
   constructor(max = 1.5) {
     this.max = max;
-    this.ratio = max;
+    // Empezar a resolución nativa; subir solo si las mediciones muestran margen.
+    this.ratio = Math.min(1, max);
     this.min = Math.min(1, max);
     this.samples = [];
     this.elapsed = 0;

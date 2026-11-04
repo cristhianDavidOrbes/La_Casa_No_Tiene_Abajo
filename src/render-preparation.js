@@ -16,13 +16,16 @@ const textureSlots = [
 
 // Preparar copias ligeras comparte geometrías y materiales, sin tocar la partida.
 export class RenderPreparation {
-  constructor(renderer, sourceScene) {
+  constructor(renderer, sourceScene, canPrepare = () => true) {
     this.renderer = renderer;
+    this.canPrepare = canPrepare;
+    this.lastBackgroundWork = 0;
     this.scene = new THREE.Scene();
     this.scene.background = sourceScene.background;
     this.scene.environment = sourceScene.environment;
     this.scene.environmentIntensity = sourceScene.environmentIntensity;
-    this.scene.fog = sourceScene.fog?.clone() ?? null;
+    // Compartir la niebla evita invalidar los materiales al alternar escenas.
+    this.scene.fog = sourceScene.fog;
     this.camera = new THREE.PerspectiveCamera(68, 1.5, 0.045, 180);
     this.textures = new Set();
     // Mantener la misma cantidad de luces permite reutilizar los programas del juego.
@@ -42,9 +45,24 @@ export class RenderPreparation {
 
   pause(background) {
     return new Promise((resolve) => {
-      if (background && typeof requestIdleCallback === 'function')
-        requestIdleCallback(resolve, { timeout: 500 });
-      else requestAnimationFrame(resolve);
+      if (!background) return requestAnimationFrame(resolve);
+      const schedule = () => {
+        const attempt = (deadline) => {
+          const now = performance.now();
+          if (
+            this.canPrepare() &&
+            (!deadline || deadline.timeRemaining() >= 5) &&
+            now - this.lastBackgroundWork >= 120
+          ) {
+            this.lastBackgroundWork = now;
+            resolve();
+          } else setTimeout(schedule, 120);
+        };
+        if (typeof requestIdleCallback === 'function')
+          requestIdleCallback(attempt, { timeout: 1000 });
+        else requestAnimationFrame(() => attempt(null));
+      };
+      setTimeout(schedule, 120);
     });
   }
 
@@ -54,11 +72,12 @@ export class RenderPreparation {
       root.traverse((o) => {
         if (o.isMesh || o.isPoints || o.isLine || o.isSprite) objects.push(o);
       });
-    // Ocho objetos por tanda: evitar subir un cuarto completo en un fotograma.
-    for (let start = 0; start < objects.length; start += 8) {
+    // Durante la partida se preparan menos objetos, solo cuando sobra tiempo.
+    const batchSize = background ? 4 : 8;
+    for (let start = 0; start < objects.length; start += batchSize) {
       await this.pause(background);
       const batch = new THREE.Group();
-      for (const object of objects.slice(start, start + 8)) {
+      for (const object of objects.slice(start, start + batchSize)) {
         object.updateWorldMatrix(true, false);
         const copy = object.clone(false);
         copy.visible = true;
@@ -83,11 +102,11 @@ export class RenderPreparation {
       } finally {
         this.scene.remove(batch);
       }
-      onProgress(Math.min(start + 8, objects.length) / Math.max(1, objects.length));
+      onProgress(Math.min(start + batchSize, objects.length) / Math.max(1, objects.length));
     }
   }
 
-  draw() {
+  draw(scene = this.scene, camera = this.camera, shadows = false) {
     const renderer = this.renderer;
     const scissor = renderer.getScissor(new THREE.Vector4());
     const scissorTest = renderer.getScissorTest();
@@ -97,13 +116,13 @@ export class RenderPreparation {
     try {
       // Las sombras de la partida conservan su mapa; la preparación no las recalcula.
       renderer.shadowMap.autoUpdate = false;
-      renderer.shadowMap.needsUpdate = false;
+      renderer.shadowMap.needsUpdate = shadows;
       // Subir las mallas con cero píxeles visibles conserva la imagen de la partida.
       // Usar el mismo lienzo también evita otra variante de color de cada shader.
       renderer.autoClear = false;
       renderer.setScissorTest(true);
       renderer.setScissor(0, 0, 0, 0);
-      renderer.render(this.scene, this.camera);
+      renderer.render(scene, camera);
     } finally {
       renderer.setScissor(scissor);
       renderer.setScissorTest(scissorTest);

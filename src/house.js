@@ -159,6 +159,18 @@ export async function loadAssets(progress) {
     roughness: 1,
     normalScale: new THREE.Vector2(0.35, 0.35)
   });
+  // Los cristales finos no necesitan dos pasadas ni alternar sus programas al dibujarse.
+  for (const model of Object.values(models))
+    model.traverse((object) => {
+      if (!object.isMesh) return;
+      for (const material of Array.isArray(object.material) ? object.material : [object.material])
+        if (
+          material.transparent &&
+          material.side === THREE.DoubleSide &&
+          /glass/i.test(material.name)
+        )
+          material.forceSinglePass = true;
+    });
 }
 function agedMaterial(original) {
   const name = (original.name || '').toLowerCase(),
