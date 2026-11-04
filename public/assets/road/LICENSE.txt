@@ -1,0 +1,5 @@
+Asphalt 02 - Rob Tuytel / Poly Haven
+Source: https://polyhaven.com/a/asphalt_02
+License: CC0 1.0, https://polyhaven.com/license
+Original 1K diffuse, OpenGL normal and ARM maps.
+Road mesh and markings: original game geometry.

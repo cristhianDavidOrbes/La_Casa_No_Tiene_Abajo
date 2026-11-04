@@ -1,0 +1,8 @@
+VHS cassette.png - fluorinated, 2020
+Source: https://commons.wikimedia.org/wiki/File:VHS_cassette.png
+License: CC0 1.0 Universal, https://creativecommons.org/publicdomain/zero/1.0/
+Image used as cassette body; reels and label are independent game controls.
+
+TapeRewind controller in src/rewind.js: original code released under CC0 1.0.
+No third-party cassette-player code is included. The inspected GitHub player
+https://github.com/betodealmeida/cassette-tape-player is MIT, not CC0.

@@ -15,7 +15,9 @@ const FILES = [
   'horror_ghost_01',
   'horror_ghost_05',
   'jumpscare_chosen_17',
-  'rear_chosen_09'
+  'rear_chosen_09',
+  'radio_whispers',
+  'tape_rewind'
 ];
 export class Soundscape {
   constructor() {
@@ -167,6 +169,38 @@ export class Soundscape {
     sound.play();
     sound.updateMatrixWorld(true);
     return sound;
+  }
+  radioWhispers(strength, position) {
+    if (!this.ctx || !this.buffers.radio_whispers) return;
+    if (!this.radioVoice && strength > 0.001) {
+      this.radioVoice = this.play('radio_whispers', 0, 0.85, position);
+      this.radioVoice.setLoop(true);
+    }
+    if (this.radioVoice) {
+      this.radioVoice.gain.gain.setTargetAtTime(strength * 0.8, this.ctx.currentTime, 0.08);
+      this.radioVoice.setPlaybackRate(0.8 + strength * 0.14);
+    }
+  }
+  stopRadioWhispers() {
+    if (this.radioVoice?.isPlaying) this.radioVoice.stop();
+    this.radioVoice = null;
+  }
+  radioBurst(position) {
+    this.stopRadioWhispers();
+    this.play('impactMetal_medium_000', 0.65, 0.55, position);
+    this.play('impactGlass_light_000', 0.55, 0.8, position);
+    this.play('horror_hit_high', 0.4, 0.9, position);
+    this.tone(48, 0.7, 0.06, position);
+  }
+  tapeRewind(active, position) {
+    if (active && !this.tapeMotor) {
+      this.tapeMotor = this.play('tape_rewind', 0.15, 1, position);
+      this.tapeMotor?.setLoop(true);
+    } else if (!active) this.stopTapeRewind();
+  }
+  stopTapeRewind() {
+    if (this.tapeMotor?.isPlaying) this.tapeMotor.stop();
+    this.tapeMotor = null;
   }
   footstep(room, run = false) {
     const type = room === 0 ? 'wood' : 'concrete';

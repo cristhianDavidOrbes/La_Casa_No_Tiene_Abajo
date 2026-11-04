@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { solveLimb } from './creature-motion.js';
 import { setExteriorVisible } from './room-rendering.js';
+import { createRoad } from './road.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const clamp = THREE.MathUtils.clamp;
@@ -200,26 +201,7 @@ export class EndingSequence {
     land.receiveShadow = true;
     land.name = 'suelo-cc0';
     this.exterior.add(land);
-    if (this.assets.road?.scene) {
-      const source = this.assets.road.scene,
-        box = new THREE.Box3().setFromObject(source),
-        size = box.getSize(V()),
-        center = box.getCenter(V());
-      for (let i = -5; i <= 5; i++) {
-        const segment = copyMaterials(source.clone(true)),
-          holder = new THREE.Group();
-        holder.rotation.y = Math.PI / 2;
-        holder.position.set(i * 12, -0.035, 17);
-        segment.scale.set(6 / size.x, 0.045 / Math.max(0.001, size.y), 12 / size.z);
-        segment.position.set(
-          -center.x * segment.scale.x,
-          -box.min.y * segment.scale.y,
-          -center.z * segment.scale.z
-        );
-        holder.add(segment);
-        this.exterior.add(holder);
-      }
-    }
+    this.exterior.add(createRoad(this.assets.asphalt));
     const neighbour = this.assets.neighborHouse?.scene;
     if (neighbour)
       for (const [x, z, yaw, height] of [

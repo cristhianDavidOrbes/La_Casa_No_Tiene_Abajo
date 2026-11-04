@@ -285,38 +285,36 @@
         </div>
         <div class="cassette-deck">
           <div class="cassette-window">
-            <button id="rewind-reel-control" aria-label="Girar carrete izquierdo hacia atrás">
-              <span class="tape-roll tape-left" aria-hidden="true"></span
-              ><span id="reel-left" class="reel"></span
-              ><svg class="rewind-arrow" viewBox="0 0 160 160" aria-hidden="true">
-                <path
-                  d="M135 112A65 65 0 1 0 39 25M39 25L43 9M39 25L55 27"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="3"
-                />
-              </svg>
-            </button>
+            <div class="vhs-window vhs-window-left">
+              <button id="rewind-reel-control" aria-label="Girar carrete izquierdo hacia atrás">
+                <span class="tape-roll tape-left" aria-hidden="true"></span
+                ><span id="reel-left" class="reel"></span>
+              </button>
+            </div>
             <div class="cassette-label">
               <span>JULIÁN · OCT 1998</span><strong>PARA<br />VOLVER</strong
               ><small>GRABACIÓN DOMÉSTICA</small>
             </div>
-            <div class="passive-reel">
-              <span class="tape-roll tape-right" aria-hidden="true"></span
-              ><span id="reel-right" class="reel" aria-hidden="true"></span>
+            <div class="vhs-window vhs-window-right">
+              <div class="passive-reel">
+                <span class="tape-roll tape-right" aria-hidden="true"></span
+                ><span id="reel-right" class="reel" aria-hidden="true"></span>
+              </div>
             </div>
-            <div class="tape-band" aria-hidden="true"></div>
           </div>
-          <div class="cassette-marking">LADO A · 60 MIN <span>HI-FI STEREO</span></div>
+          <div class="cassette-marking">VHS · GRABACIÓN FAMILIAR <span>PAL / SP</span></div>
         </div>
         <div class="rewind-meter">
           <span>REBOBINANDO</span><b id="rewind-percent">0%</b>
           <div class="rewind-track"><i id="rewind-progress"></i></div>
         </div>
         <div id="rewind-status" role="status">GIRA EL CARRETE IZQUIERDO HACIA ATRÁS</div>
-        <p class="rewind-instruction">Gira el carrete izquierdo en sentido antihorario.</p>
+        <p class="rewind-instruction">
+          Gira el carrete izquierdo en sentido antihorario o mantén REW. Al soltar, se detiene.
+          Puedes retirar la cinta sin perder lo rebobinado.
+        </p>
         <div class="rewind-actions">
-          <button id="rewind-hold" class="primary">◀◀ &nbsp; Mantén para rebobinar · ←</button
+          <button id="rewind-hold" class="primary">REW · Mantén pulsado · Espacio / ←</button
           ><button id="rewind-close">Retirar cinta · Esc</button>
         </div>
       </div>

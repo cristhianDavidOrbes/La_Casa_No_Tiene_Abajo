@@ -11,12 +11,11 @@ export async function loadEndingAssets(progress = () => {}) {
   const models = [
     ['protagonist', 'protagonist.glb'],
     ['house', 'house.glb'],
-    ['road', 'road.glb'],
     ['neighborHouse', 'neighbor-house.glb']
   ];
   await loadPool(models, async ([key, file]) => {
     assets[key] = await loadWithRetry('/assets/ending/' + file, (url) => loader.loadAsync(url));
-    progress(++done, 7);
+    progress(++done, 9);
   });
   assets.ground = {};
   await loadPool(
@@ -34,7 +33,26 @@ export async function loadEndingAssets(progress = () => {}) {
       texture.anisotropy = 4;
       if (slot === 'map') texture.colorSpace = THREE.SRGBColorSpace;
       assets.ground[slot] = texture;
-      progress(++done, 7);
+      progress(++done, 9);
+    }
+  );
+  assets.asphalt = {};
+  await loadPool(
+    [
+      ['map', 'diff'],
+      ['normalMap', 'nor_gl'],
+      ['arm', 'arm']
+    ],
+    async ([slot, suffix]) => {
+      const texture = await loadWithRetry('/assets/road/asphalt_02_' + suffix + '_1k.jpg', (url) =>
+        textureLoader.loadAsync(url)
+      );
+      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+      texture.repeat.set(44, 2);
+      texture.anisotropy = 4;
+      if (slot === 'map') texture.colorSpace = THREE.SRGBColorSpace;
+      assets.asphalt[slot] = texture;
+      progress(++done, 9);
     }
   );
   return assets;

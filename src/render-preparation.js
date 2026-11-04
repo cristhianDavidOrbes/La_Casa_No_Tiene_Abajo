@@ -16,9 +16,10 @@ const textureSlots = [
 
 // Preparar copias ligeras comparte geometrías y materiales, sin tocar la partida.
 export class RenderPreparation {
-  constructor(renderer, sourceScene, canPrepare = () => true) {
+  constructor(renderer, sourceScene, canPrepare = () => true, target = null) {
     this.renderer = renderer;
     this.canPrepare = canPrepare;
+    this.target = target;
     this.lastBackgroundWork = 0;
     this.scene = new THREE.Scene();
     this.scene.background = sourceScene.background;
@@ -28,6 +29,7 @@ export class RenderPreparation {
     this.scene.fog = sourceScene.fog;
     this.camera = new THREE.PerspectiveCamera(68, 1.5, 0.045, 180);
     this.textures = new Set();
+    this.prepared = new Set();
     // Mantener la misma cantidad de luces permite reutilizar los programas del juego.
     sourceScene.traverseVisible((object) => {
       if (!object.isLight) return;
@@ -68,9 +70,24 @@ export class RenderPreparation {
 
   async prepare(roots, { background = false, onProgress = () => {} } = {}) {
     const objects = [];
+    const keys = new Set();
+    const keyFor = (o) =>
+      o.geometry?.uuid +
+      '|' +
+      (Array.isArray(o.material) ? o.material : [o.material]).map((m) => m.uuid).join(',') +
+      '|' +
+      !!o.isSkinnedMesh +
+      '|' +
+      !!o.isInstancedMesh +
+      '|' +
+      o.receiveShadow;
     for (const root of roots)
       root.traverse((o) => {
-        if (o.isMesh || o.isPoints || o.isLine || o.isSprite) objects.push(o);
+        if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite)) return;
+        const key = keyFor(o);
+        if (this.prepared.has(key) || keys.has(key)) return;
+        keys.add(key);
+        objects.push(o);
       });
     // Durante la partida se preparan menos objetos, solo cuando sobra tiempo.
     const batchSize = background ? 4 : 8;
@@ -97,8 +114,18 @@ export class RenderPreparation {
       }
       this.scene.add(batch);
       try {
-        await prepareShaders(this.renderer, this.scene, this.camera);
+        const target = this.renderer.getRenderTarget();
+        let compilation;
+        try {
+          this.renderer.setRenderTarget(this.target);
+          compilation = prepareShaders(this.renderer, this.scene, this.camera);
+        } finally {
+          this.renderer.setRenderTarget(target);
+        }
+        await compilation;
         this.draw();
+        for (const object of objects.slice(start, start + batchSize))
+          this.prepared.add(keyFor(object));
       } finally {
         this.scene.remove(batch);
       }
@@ -108,12 +135,14 @@ export class RenderPreparation {
 
   draw(scene = this.scene, camera = this.camera, shadows = false) {
     const renderer = this.renderer;
+    const target = renderer.getRenderTarget();
     const scissor = renderer.getScissor(new THREE.Vector4());
     const scissorTest = renderer.getScissorTest();
     const autoClear = renderer.autoClear;
     const shadowUpdate = renderer.shadowMap.needsUpdate;
     const autoUpdate = renderer.shadowMap.autoUpdate;
     try {
+      renderer.setRenderTarget(this.target);
       // Las sombras de la partida conservan su mapa; la preparación no las recalcula.
       renderer.shadowMap.autoUpdate = false;
       renderer.shadowMap.needsUpdate = shadows;
@@ -124,6 +153,7 @@ export class RenderPreparation {
       renderer.setScissor(0, 0, 0, 0);
       renderer.render(scene, camera);
     } finally {
+      renderer.setRenderTarget(target);
       renderer.setScissor(scissor);
       renderer.setScissorTest(scissorTest);
       renderer.autoClear = autoClear;
@@ -134,6 +164,7 @@ export class RenderPreparation {
 
   dispose() {
     this.textures.clear();
+    this.prepared.clear();
     this.scene.clear();
   }
 }

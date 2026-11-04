@@ -57,7 +57,7 @@ export class HauntDirector {
       state.room < 4 &&
       !state.haunts.includes(id) &&
       roomTime > (state.room === 0 ? 6 : 4) &&
-      (state.room !== 0 || state.watched)
+      (state.room !== 0 || state.watched || state.relays[0])
     ) {
       this.active = {
         id,
@@ -90,5 +90,8 @@ export class HauntDirector {
 // Let the selected three-second scream finish before suspending audio.
 export const CAPTURE_DURATION = 3.1;
 export function captureDistance(age) {
-  return 1.65 - 0.68 * Math.min(1, age / 0.34);
+  const lunge = Math.min(1, Math.max(0, age / 0.18));
+  return (
+    2.8 - 2.42 * (1 - (1 - lunge) ** 3) + (age > 0.18 ? Math.abs(Math.sin(age * 23)) * 0.055 : 0)
+  );
 }

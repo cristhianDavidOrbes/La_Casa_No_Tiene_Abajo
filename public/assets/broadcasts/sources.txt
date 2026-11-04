@@ -1,0 +1,4 @@
+instruccion-fusible.png and instruccion-panel.png: screenshots supplied by the user for these broadcasts.
+instruccion-televisor.png and instruccion-radio.png: rendered from the same Poly Haven CC0 models used by the game; scripts/preparar-tutorial.py.
+Videos 01, 02 and 05: original narration, local speech synthesis and these images; scripts/preparar-emisiones.ps1.
+Channel 3 has no narration before cassette insertion. Channel 4 is a workshop camera without narration.

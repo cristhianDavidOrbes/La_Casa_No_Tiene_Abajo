@@ -6,7 +6,15 @@ import { loadBroadcasts, prepareVideo } from './media-loading.js';
 import { RenderPreparation } from './render-preparation.js';
 import { loadAssets, createWorld, updateWorld, applyPuzzle, applyLockerLayout } from './house.js';
 import { EYE_HEIGHT, smoothstep, collisionAt, insideHole } from './physics.js';
-import { SAVE_KEY, fresh, parseSave, objective, notes, letter } from './story.js';
+import {
+  SAVE_KEY,
+  fresh,
+  parseSave,
+  objective,
+  notes,
+  letter,
+  captureCheckpoint
+} from './story.js';
 import { portalOpen, roomQuaternion, localPosition } from './level.js';
 import {
   collisionWorld,
@@ -28,6 +36,10 @@ import { Pursuer } from './pursuer.js';
 import { createFlash, triggerFlash, tickFlash, hitFlash } from './flash.js';
 import { Soundscape } from './audio.js';
 import { RenderBudget } from './render-budget.js';
+import { advanceStamina } from './stamina.js';
+import { TapeRewind } from './rewind.js';
+import { Surveillance } from './surveillance.js';
+import { RadioHaunt } from './radio-haunt.js';
 import { RoomRendering } from './room-rendering.js';
 import { EndingSequence } from './ending-sequence.js';
 import { loadEndingAssets } from './ending-assets.js';
@@ -105,6 +117,7 @@ let collisionTree,
   playerActor = null;
 let roomRendering = null;
 let endingSequence = null;
+let surveillance = null;
 let world,
   state = fresh(),
   mode = 'title',
@@ -126,7 +139,8 @@ let player = new THREE.Vector3(0, 0, 4.7),
   transition = null,
   target = null;
 let stamina = 100,
-  staminaExhausted = false;
+  staminaExhausted = false,
+  sprinting = false;
 let subtitleTime = 0,
   toastTime = 0,
   tvWatch = 0,
@@ -142,6 +156,7 @@ let subtitleTime = 0,
 const haunts = new HauntDirector();
 let retirement = new UnseenRetirement(),
   captureAge = 0,
+  captureView = null,
   rearHaunt = null,
   watcherHead = new WatcherHead(),
   blindness = 0;
@@ -155,9 +170,11 @@ let volume = 0.65,
   rewindTimer = 0,
   portalCooldown = 0,
   lastThought = '';
-let rewindProgress = 0,
-  rewindAngle = 0,
-  rewindDragging = false,
+const rewinder = new TapeRewind();
+const radioHaunt = new RadioHaunt();
+let radioBurstTimer = 0,
+  radioDebris = [];
+let rewindDragging = false,
   rewindPrevious = 0,
   rewindHeld = false,
   rewindTick = 0;
@@ -167,8 +184,7 @@ const keys = new Set(),
   rayDirection = new THREE.Vector3(),
   tmp = new THREE.Vector3(),
   qLook = new THREE.Quaternion();
-const cctv = new THREE.PerspectiveCamera(62, 4 / 3, 0.05, 40),
-  cctvTarget = new THREE.WebGLRenderTarget(256, 192),
+const cctvTarget = new THREE.WebGLRenderTarget(256, 192),
   cctvBuffer = new Uint8Array(256 * 192 * 4),
   cctvCanvas = document.createElement('canvas');
 cctvCanvas.width = 256;
@@ -340,6 +356,16 @@ $('keep-letter').onclick = () => {
   requestLock();
 };
 function resetEphemeral() {
+  audio.stopRadioWhispers();
+  audio.stopTapeRewind();
+  radioHaunt.reset();
+  for (const prop of radioDebris) {
+    collisionTree?.removeProp(prop);
+    prop.root.removeFromParent();
+    prop.root.geometry.dispose();
+    prop.root.material.dispose();
+  }
+  radioDebris = [];
   haunts.reset();
   retirement = new UnseenRetirement();
   captureAge = 0;
@@ -349,10 +375,12 @@ function resetEphemeral() {
   scene.fog.density = 0.022;
   scene.fog.color.copy(normalFogColor);
   rewindHeld = rewindDragging = false;
+  rewinder.reset();
   show('rewind-screen', false);
   $('blindness').style.opacity = '0';
   stamina = 100;
   staminaExhausted = false;
+  sprinting = false;
   $('capture').classList.add('hidden');
   flash = createFlash(state.flashCharges);
   lamp = false;
@@ -590,26 +618,20 @@ function setChannel(n) {
   broadcastVideo.loop = n !== 2 && !(state.inserted && n === 3);
   audio.switch();
   const name = state.inserted && n === 3 ? 'para-volver' : 'canal-' + String(n).padStart(2, '0');
-  broadcastVideo.src = broadcasts[name];
-  broadcastVideo
-    .play()
-    .catch(() =>
-      toast('La emisión no pudo reproducirse. Las pistas siguen disponibles en el registro.')
-    );
-  mediaRunning = true;
+  const hasVideo = n !== 4 && (n !== 3 || state.inserted);
+  broadcastVideo.pause();
+  if (hasVideo) {
+    broadcastVideo.src = broadcasts[name];
+    broadcastVideo
+      .play()
+      .catch(() =>
+        toast('La emisión no pudo reproducirse. Las pistas siguen disponibles en el registro.')
+      );
+  }
+  mediaRunning = hasVideo;
   document
     .querySelectorAll('#channels button')
     .forEach((b, i) => b.classList.toggle('selected', i + 1 === n));
-  if (n === 2 && !state.watched)
-    think('Tengo que escuchar las instrucciones de Julián antes de tocar el motor.');
-  if (n === 5) {
-    addNote('frequency');
-    subtitle('Portadora de mantenimiento: ochenta y tres punto cero.', 5);
-  }
-  if (n === 4) {
-    addNote('procedure');
-    subtitle('Debo observar las sillas de madera. La combinación no está en la grabación.', 6);
-  }
   if (state.inserted && n === 3) think('Esta es su última grabación. No debo interrumpirla.');
 }
 for (let i = 1; i <= 5; i++) {
@@ -645,6 +667,13 @@ function radioDialog() {
   openRadioScreen();
 }
 function openRadioScreen() {
+  if (state.relays[1]) {
+    think('La radio quedó quemada. La conexión del taller sigue abierta.');
+    return;
+  }
+  radioHaunt.reset();
+  radioBurstTimer = 0;
+  $('radio-screen').classList.remove('radio-exploding');
   tune = state.frequency || 0;
   returnMode = mode;
   mode = 'dialog';
@@ -657,6 +686,7 @@ function openRadioScreen() {
   $('radio-knob').focus();
 }
 function closeRadioScreen() {
+  audio.stopRadioWhispers();
   show('radio-screen', false);
   mode = returnMode;
   if (mode === 'playing') {
@@ -664,6 +694,46 @@ function closeRadioScreen() {
     if (!seated) requestLock();
   }
   keys.clear();
+}
+function updateRadioHaunt(dt) {
+  const position = world.worldPoint(1, new THREE.Vector3(-1.5, 1.2, -2.6));
+  const result = radioHaunt.update(radioFrequency(), dt);
+  if (!radioHaunt.exploded) audio.radioWhispers(result.strength, position);
+  if (result.burst) {
+    radioBurstTimer = 0.55;
+    audio.radioBurst(position);
+    $('radio-screen').classList.add('radio-exploding');
+    $('radio-status').textContent = 'SOBRECARGA / 83.0 MHz';
+    const room = world.rooms[1];
+    const material = new THREE.MeshStandardMaterial({
+      color: '#242925',
+      metalness: 0.3,
+      roughness: 0.85
+    });
+    const geometry = new THREE.BoxGeometry(0.1, 0.065, 0.06);
+    for (let i = 0; i < 8; i++) {
+      const shard = new THREE.Mesh(geometry, material);
+      shard.position.set(-1.5 + ((i % 3) - 1) * 0.07, 1.15, -2.65);
+      room.group.add(shard);
+      const prop = collisionTree.createProp(shard, 1, { mass: 0.045 });
+      collisionTree.launchProp(
+        prop,
+        new THREE.Vector3(
+          (Math.random() - 0.5) * 2.4,
+          2 + Math.random(),
+          1 + Math.random()
+        ).applyQuaternion(roomQuaternion(1)),
+        new THREE.Vector3(5, 8, 4)
+      );
+      radioDebris.push(prop);
+    }
+    state.frequency = tune;
+    activateRelay(1);
+  }
+  if (radioHaunt.exploded) {
+    radioBurstTimer -= dt;
+    if (radioBurstTimer <= 0) closeRadioScreen();
+  }
 }
 function buildRadioScale() {
   const scale = $('radio-scale');
@@ -687,7 +757,7 @@ function radioFrequency() {
 }
 function updateRadioKnob() {
   const freq = radioFrequency(),
-    synced = Math.abs(freq - 83) < 0.65;
+    synced = Math.abs(freq - 83) <= 0.05;
   const fraction = tune / (frequencyOptions.length - 1);
   const angleDeg = -130 + fraction * 260;
   $('knob-rotor').style.transform = `rotate(${angleDeg}deg)`;
@@ -701,7 +771,7 @@ function updateRadioKnob() {
   $('radio-signal-fill').style.width = signalPct + '%';
   $('radio-signal-fill').classList.toggle('peak', synced);
   $('radio-status').textContent = synced
-    ? 'PORTADORA FIJA · PULSA SINCRONIZAR'
+    ? 'MANTÉN 83.0 MHz · SE OYEN VOCES'
     : 'INTERFERENCIA · GIRA DESPACIO EL DIAL';
   $('radio-status').classList.toggle('locked', synced);
 }
@@ -757,13 +827,11 @@ function changeTune(n) {
     { passive: false }
   );
   $('radio-sync-btn').addEventListener('click', () => {
-    if (Math.abs(radioFrequency() - 83) < 0.65) {
-      state.frequency = tune;
-      closeRadioScreen();
-      activateRelay(1);
+    if (Math.abs(radioFrequency() - 83) <= 0.05) {
+      radioHaunt.lockFor = 0.8;
     } else {
       audio.tone(180, 0.15, 0.05);
-      $('radio-status').textContent = 'Solo se oye estática. Afina la señal.';
+      $('radio-status').textContent = 'Afina hasta 83.0 MHz. Las voces se acercan.';
     }
   });
   $('radio-close-btn').addEventListener('click', closeRadioScreen);
@@ -852,20 +920,20 @@ function exitDialog() {
     );
 }
 function updateRewindUI() {
-  const degrees = (rewindAngle * 180) / Math.PI;
-  $('reel-left').style.transform = `rotate(${-degrees}deg)`;
-  $('reel-right').style.transform = `rotate(${-degrees}deg)`;
+  const rewindProgress = rewinder.progress;
+  $('reel-left').style.transform = `rotate(${rewinder.leftAngle}rad)`;
+  $('reel-right').style.transform = `rotate(${rewinder.rightAngle}rad)`;
   document
     .querySelector('.tape-left')
-    .style.setProperty('--roll-size', 62 + 36 * Math.sqrt(rewindProgress) + '%');
+    .style.setProperty('--roll-size', rewinder.leftRadius * 200 + '%');
   document
     .querySelector('.tape-right')
-    .style.setProperty('--roll-size', 62 + 36 * Math.sqrt(1 - rewindProgress) + '%');
+    .style.setProperty('--roll-size', rewinder.rightRadius * 200 + '%');
   $('rewind-progress').style.width = (rewindProgress * 100).toFixed(1) + '%';
   $('rewind-percent').textContent = Math.floor(rewindProgress * 100) + '%';
   $('rewind-status').textContent =
     rewindProgress >= 1
-      ? 'LA CINTA ESTÁ AL PRINCIPIO'
+      ? 'AL PRINCIPIO · CINTA PREPARADA'
       : rewindProgress > 0.7
         ? 'LA IMAGEN RETROCEDE…'
         : rewindProgress > 0.35
@@ -875,6 +943,7 @@ function updateRewindUI() {
 function closeRewind() {
   show('rewind-screen', false);
   rewindDragging = rewindHeld = false;
+  audio.stopTapeRewind();
   document.querySelector('.rewind-machine').classList.remove('winding');
   mode = 'playing';
   audio.pause(false);
@@ -882,15 +951,12 @@ function closeRewind() {
   keys.clear();
 }
 function addRewind(rotation) {
-  if (mode !== 'rewind' || rotation <= 0) return;
-  rewindAngle += rotation * 2 * Math.PI;
-  rewindProgress = Math.min(1, rewindProgress + rotation / 4);
+  if (mode !== 'rewind') return;
+  rewinder.turn(rotation);
   updateRewindUI();
-  if (performance.now() - rewindTick > 100) {
-    audio.play('footstep_concrete_001', 0.045, 0.68);
-    rewindTick = performance.now();
-  }
-  if (rewindProgress >= 1) {
+}
+function finishRewind() {
+  if (mode === 'rewind' && rewinder.completedFor >= 0.65) {
     closeRewind();
     state.rewound = true;
     addNote('tenant');
@@ -903,8 +969,6 @@ function openRewind() {
   mode = 'rewind';
   keys.clear();
   unlock();
-  rewindProgress = 0;
-  rewindAngle = 0;
   rewindHeld = rewindDragging = false;
   show('rewind-screen');
   updateRewindUI();
@@ -930,10 +994,11 @@ function openRewind() {
     if (delta > Math.PI) delta -= Math.PI * 2;
     if (delta < -Math.PI) delta += Math.PI * 2;
     rewindPrevious = angle(e);
-    if (delta < 0) addRewind(-delta / (Math.PI * 2));
+    addRewind(THREE.MathUtils.clamp(-delta / (Math.PI * 2), -0.25, 0.25));
   });
   reel.addEventListener('pointerup', () => (rewindDragging = false));
   reel.addEventListener('pointercancel', () => (rewindDragging = false));
+  reel.addEventListener('lostpointercapture', () => (rewindDragging = false));
   $('rewind-hold').addEventListener('pointerdown', (e) => {
     if (mode !== 'rewind') return;
     rewindHeld = true;
@@ -1086,13 +1151,14 @@ function interact(item = target) {
     case 'insert':
       if (state.released) think();
       else if (state.inserted) {
-        think('La cinta está dentro. Me sentaré y seleccionaré el canal 03.');
+        think('La cinta está reproduciéndose. Julián pidió que la dejara llegar al final.');
       } else if (state.rewound) {
         state.inserted = true;
         retirement = new UnseenRetirement();
         danger = 0;
         audio.switch();
-        think('He colocado la cinta. Tengo que sentarme y verla en el canal 03.');
+        setChannel(3);
+        think('He colocado la cinta. La última grabación empieza automáticamente.');
         persist();
       } else think('Aquí reproduciré la cinta cuando la haya recuperado y rebobinado.');
       break;
@@ -1106,9 +1172,7 @@ function interact(item = target) {
       if (state.relays[state.room]) {
         subtitle(notes['relay' + state.room].body, 6);
       } else if (state.room === 0) {
-        if (!state.watched)
-          subtitle('El procedimiento está en el canal 02. Primero consulta la cinta.', 5);
-        else if (!state.fuse)
+        if (!state.fuse)
           subtitle('Falta un fusible. Hay uno sobre la mesa junto a la puerta de entrada.', 5);
         else activateRelay(0);
       } else if (state.room === 1)
@@ -1218,9 +1282,31 @@ function movementInput() {
     side /= n;
     forward /= n;
   }
-  const canRun =
-    (keys.has('ShiftLeft') || keys.has('ShiftRight')) && !staminaExhausted && stamina > 0;
-  return { side, forward, speed: canRun ? 3.55 : 2, yaw, jump: keys.has('Space') };
+  return { side, forward, speed: sprinting ? 3.55 : 2, yaw, jump: keys.has('Space') };
+}
+function updateStamina(dt) {
+  const input = movementInput();
+  const enemyDist = enemy ? enemy.position.distanceTo(camera.position) : Infinity;
+  const near = enemy && enemy.delay <= 0 && enemy.stunRemaining <= 0 && enemyDist < 8.5;
+  const result = advanceStamina(stamina, staminaExhausted, dt, {
+    wantsRun: keys.has('ShiftLeft') || keys.has('ShiftRight'),
+    moving: Math.hypot(input.side, input.forward) > 0.01,
+    resting: !!hiddenLocker || seated || mode !== 'playing',
+    panic: near ? 1 + 2.2 * THREE.MathUtils.clamp((8.5 - enemyDist) / 6, 0, 1) : 1
+  });
+  stamina = result.value;
+  staminaExhausted = result.exhausted;
+  sprinting = result.running;
+  $('stamina-fill').style.width = stamina + '%';
+  if ($('stamina-val')) $('stamina-val').textContent = Math.round(stamina) + '%';
+  $('stamina-container')?.classList.toggle('exhausted', staminaExhausted);
+  $('stamina-container')?.classList.toggle('panic', near && sprinting);
+  if ($('stamina-label'))
+    $('stamina-label').textContent = staminaExhausted
+      ? 'RECUPERANDO'
+      : near && sprinting
+        ? 'PÁNICO'
+        : 'ALIENTO';
 }
 function updateCamera(dt) {
   const fov = hiddenLocker ? 80 : seated ? 35 : 68;
@@ -1279,39 +1365,8 @@ function updatePlayer(dt) {
     side /= length;
     forward /= length;
   }
-  const enemyDist = enemy
-    ? enemy.position.distanceTo(world.worldPoint(state.room, player))
-    : Infinity;
-  const isNearEnemy =
-    enemy &&
-    enemy.delay <= 0 &&
-    enemy.stunRemaining <= 0 &&
-    (state.room === enemy.room || enemyDist < 8.5);
-  const panicT = isNearEnemy ? THREE.MathUtils.clamp((8.5 - enemyDist) / 6, 0, 1) : 0;
-  const panicMultiplier = 1 + 2.2 * panicT;
-  const wantsRun = keys.has('ShiftLeft') || keys.has('ShiftRight'),
-    canRun = wantsRun && length > 0.01 && !staminaExhausted && stamina > 0,
-    run = canRun,
+  const run = sprinting,
     speed = (run ? 3.55 : 2.0) * dt;
-  if (run) {
-    stamina = Math.max(0, stamina - 22 * panicMultiplier * dt);
-    if (stamina <= 0) staminaExhausted = true;
-  } else {
-    stamina = Math.min(100, stamina + 20 * dt);
-    if (stamina >= 100) staminaExhausted = false;
-  }
-  const sFill = $('stamina-fill'),
-    sBox = $('stamina-container'),
-    sLabel = $('stamina-label'),
-    sVal = $('stamina-val');
-  if (sFill) sFill.style.width = stamina + '%';
-  if (sVal) sVal.textContent = Math.round(stamina) + '%';
-  if (sBox) {
-    sBox.classList.toggle('exhausted', staminaExhausted);
-    sBox.classList.toggle('panic', isNearEnemy && run);
-  }
-  if (sLabel)
-    sLabel.textContent = staminaExhausted ? 'AGOTADO' : isNearEnemy && run ? 'PÁNICO' : 'ALIENTO';
   const dx = (side * Math.cos(yaw) - forward * Math.sin(yaw)) * speed;
   let dz = (-side * Math.sin(yaw) - forward * Math.cos(yaw)) * speed;
   // The leaf can be opened to see outside, but the protagonist keeps the
@@ -1716,6 +1771,11 @@ function caught() {
   if (mode !== 'playing') return;
   mode = 'caught';
   captureAge = 0;
+  captureView = {
+    position: camera.position.clone(),
+    rotation: camera.quaternion.clone(),
+    fov: camera.fov
+  };
   show('hud', false);
   unlock();
   keys.clear();
@@ -1727,14 +1787,21 @@ function caught() {
 }
 function updateCapture(dt) {
   captureAge += dt;
+  camera.position.copy(captureView.position);
+  camera.quaternion.copy(captureView.rotation);
+  const impact = Math.exp(-(((captureAge - 0.18) / 0.065) ** 2));
+  camera.fov = comfort
+    ? captureView.fov
+    : captureView.fov + 16 * impact - 7 * Math.min(1, captureAge / 0.3);
+  camera.updateProjectionMatrix();
   const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion),
     forward = camera.getWorldDirection(new THREE.Vector3());
   if (!comfort) {
-    const shake = Math.max(0, 1 - captureAge / CAPTURE_DURATION) * 0.032;
+    const shake = (0.018 + impact * 0.075) * Math.max(0, 1 - captureAge / CAPTURE_DURATION);
     camera.position.x += (Math.random() - 0.5) * shake;
     camera.position.y += (Math.random() - 0.5) * shake;
     camera.position.z += (Math.random() - 0.5) * shake;
-    camera.rotation.z += (Math.random() - 0.5) * shake * 1.8;
+    camera.rotateZ(Math.sin(captureAge * 61) * shake * 1.8);
   }
   world.creature.visible = true;
   world.creature.quaternion.copy(camera.quaternion);
@@ -1754,19 +1821,20 @@ function updateCapture(dt) {
   world.creature.position.add(desired.sub(head));
   world.creature.updateWorldMatrix(true, true);
   $('capture').style.opacity = String(comfort ? 0.22 : 0.4 + 0.1 * Math.sin(captureAge * 17));
+  $('capture').style.setProperty('--impact', comfort ? '0' : String(impact * 0.45));
   $('fade').style.opacity = String(Math.max(0, (captureAge - (CAPTURE_DURATION - 0.4)) / 0.4));
   if (captureAge >= CAPTURE_DURATION) {
-    const checkpoint = saved();
-    if (checkpoint) state = checkpoint;
-    state.flashCharges = 1;
+    state = captureCheckpoint(state);
     placeAtCheckpoint();
-    mode = 'paused';
+    mode = 'playing';
     show('hud');
-    show('pause');
+    show('pause', false);
     $('fade').style.opacity = '0';
-    audio.pause(true);
+    audio.pause(false);
+    persist();
+    requestLock();
     subtitle(
-      'Nuevo intento: observa las superficies, busca la linterna y usa su único destello.',
+      'Has vuelto al cuarto de rebobinado. Conservas la cinta y los motores siguen abiertos.',
       8
     );
   }
@@ -1808,30 +1876,9 @@ function win() {
 }
 
 function securityFrame(time) {
-  if (cctvPending || time - lastCCTV < 0.2) return;
+  if (!surveillance?.ready || cctvPending || time - lastCCTV < 0.25) return;
   lastCCTV = time;
-  const room = world.rooms[0],
-    tv = room.tv;
-  const oldVisible = world.creature.visible,
-    oldPos = world.creature.position.clone(),
-    oldQ = world.creature.quaternion.clone();
-  if (state.watched && Math.floor(time / 4) % 3 === 1) {
-    world.creature.visible = true;
-    world.creature.position.set(-1.8, 0, 2.8);
-    world.creature.quaternion.identity();
-  }
-  cctv.position.set(4.6, 3.5, 4.7);
-  cctv.up.set(0, 1, 0);
-  cctv.lookAt(0, 1, 0);
-  tv.screen.visible = false;
-  const old = renderer.getRenderTarget();
-  renderer.setRenderTarget(cctvTarget);
-  renderer.render(scene, cctv);
-  renderer.setRenderTarget(old);
-  tv.screen.visible = true;
-  world.creature.visible = oldVisible;
-  world.creature.position.copy(oldPos);
-  world.creature.quaternion.copy(oldQ);
+  surveillance.render(renderer);
   // A synchronous readback blocks the entire browser until the GPU finishes.
   cctvPending = true;
   renderer
@@ -1865,7 +1912,8 @@ function broadcast(time) {
     ctx = tv.ctx,
     w = 768,
     h = 576;
-  const liveVideo = ch > 0 && broadcastVideo.readyState >= 2 && !(ch === 3 && !state.inserted);
+  const liveVideo =
+    ch > 0 && ch !== 4 && broadcastVideo.readyState >= 2 && !(ch === 3 && !state.inserted);
   setTVTexture(liveVideo ? broadcastTexture : tv.texture);
   tv.light.intensity = ch ? 7 : 0;
   if (liveVideo) return;
@@ -1906,8 +1954,8 @@ function broadcast(time) {
         const pages = [
           ['MANTENIMIENTO', 'TRES CONEXIONES / UNA SALIDA'],
           ['REEMPLACE EL FUSIBLE', 'MESA JUNTO A LA ENTRADA'],
-          ['SI EL SUELO DESAPARECE', 'NO INTENTE DETENER LA CAÍDA'],
-          ['SIGA EL POLVO', 'NO TODAS LAS COSAS CAEN CON USTED']
+          ['COMPORTAMIENTOS EXTRAÑOS', 'ESTA CASA CAMBIA DE ORIENTACIÓN'],
+          ['OBSERVA EL ENTORNO', 'LOS UMBRALES PERMITEN REGRESAR']
         ];
         ctx.font = '38px monospace';
         ctx.fillText(pages[cycle][0], w / 2, 240, w - 60);
@@ -1916,19 +1964,11 @@ function broadcast(time) {
         ctx.font = '22px monospace';
         ctx.fillText('CONEXIONES   01 — 02 — 03', w / 2, 460);
       }
-      if (ch === 4) {
-        ctx.font = '35px monospace';
-        ctx.fillText('PROTOCOLO DE ORIENTACIÓN', w / 2, 210, w - 60);
-        ctx.font = '33px monospace';
-        ctx.fillText('OBSERVE LAS TRES SILLAS', w / 2, 310);
-        ctx.font = '21px monospace';
-        ctx.fillText('EL PANEL INDICA EL ORDEN DE HABITACIONES', w / 2, 440, w - 50);
-      }
       if (ch === 5) {
-        ctx.font = '95px monospace';
-        ctx.fillText('83.0', w / 2, 280);
+        ctx.font = '36px monospace';
+        ctx.fillText('ARCHIVO SONORO', w / 2, 280);
         ctx.font = '24px monospace';
-        ctx.fillText('MHz / PORTADORA DE MANTENIMIENTO', w / 2, 345);
+        ctx.fillText('MUSEO DE LA RADIO', w / 2, 345);
         ctx.beginPath();
         for (let x = 0; x < w; x++) {
           const y = 445 + Math.sin(x * 0.04 + time * 4) * 15 + Math.sin(x * 0.1) * 4;
@@ -1939,11 +1979,15 @@ function broadcast(time) {
       }
     }
     if (ch === 3 && !state.inserted) {
+      ctx.font = '44px monospace';
+      ctx.fillText('SIN SEÑAL', w / 2, h / 2);
+    }
+    if (ch === 4) {
       securityFrame(time);
       ctx.drawImage(cctvCanvas, 20, 70, w - 40, h - 140);
+      ctx.font = '24px monospace';
       ctx.fillStyle = '#dae4cf';
-      ctx.font = '20px monospace';
-      ctx.fillText('CIRCUITO CERRADO / RETARDO DESCONOCIDO', w / 2, h - 30);
+      ctx.fillText(surveillance?.ready ? 'CÁMARA 02 / TALLER' : 'CONECTANDO CÁMARA', w / 2, h - 35);
     }
     ctx.fillStyle = '#000';
     ctx.globalAlpha = 0.19;
@@ -2003,7 +2047,7 @@ document.addEventListener('keydown', (event) => {
       closeRewind();
       return;
     }
-    if (event.code === 'ArrowLeft' || event.code === 'KeyA') {
+    if (['ArrowLeft', 'KeyA', 'Space'].includes(event.code)) {
       keys.add(event.code);
       event.preventDefault();
     }
@@ -2077,6 +2121,9 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('blur', () => {
   keys.clear();
+  rewindHeld = rewindDragging = false;
+  audio.stopTapeRewind();
+  audio.stopRadioWhispers();
   dragging = false;
   if (mode === 'playing') pauseGame();
 });
@@ -2188,6 +2235,7 @@ async function prepareRemainingRooms(preparation) {
         console.warn(`Preparación del cuarto ${room.id}:`, error);
       }
       roomRendering.preparedRooms.add(room.id);
+      if (room.id === 2) await surveillance.prepare(renderer, preparation.canPrepare);
       if (!videoPrepared) {
         const videoMaterial = world.rooms[0].tv.screen.clone();
         videoMaterial.map = broadcastTexture;
@@ -2247,6 +2295,7 @@ function frame(now) {
   const ratio = renderBudget.sample(rawDt * 1000);
   if (ratio !== null) renderer.setPixelRatio(ratio);
   if (mode === 'playing') {
+    updateStamina(dt);
     world.entryDoor.update(dt);
     if (playerActor) {
       const physical = !hiddenLocker && !seated && rewindTimer <= 0;
@@ -2255,6 +2304,7 @@ function frame(now) {
       collisionTree.enable(playerActor, physical);
     }
     collisionTree?.step(dt);
+    for (const prop of radioDebris) collisionTree.syncProp(prop);
     const hadFlash = flash.remaining > 0;
     tickFlash(flash, dt);
     lamp = flash.remaining > 0;
@@ -2302,7 +2352,6 @@ function frame(now) {
       }
     }
     if (
-      seated &&
       state.inserted &&
       state.channel === 3 &&
       !state.released &&
@@ -2327,10 +2376,15 @@ function frame(now) {
   } else if (mode === 'caught') {
     updateCapture(dt);
   } else if (mode === 'rewind') {
-    const winding = rewindHeld || rewindDragging || keys.has('ArrowLeft') || keys.has('KeyA');
+    const held = rewindHeld || keys.has('ArrowLeft') || keys.has('KeyA') || keys.has('Space');
+    rewinder.update(dt, held);
+    const winding = rewinder.progress < 1 && (rewinder.speed > 0.02 || rewindDragging);
     document.querySelector('.rewind-machine').classList.toggle('winding', winding);
-    if (rewindHeld || keys.has('ArrowLeft') || keys.has('KeyA')) addRewind(dt / 5);
+    audio.tapeRewind(winding, world.worldPoint(4, new THREE.Vector3(-1.5, 1.1, -2.65)));
+    updateRewindUI();
+    finishRewind();
   } else if (mode === 'dialog' && !$('radio-screen').classList.contains('hidden')) {
+    updateRadioHaunt(dt);
     const input =
       Number(keys.has('ArrowRight') || keys.has('ArrowUp')) -
       Number(keys.has('ArrowLeft') || keys.has('ArrowDown'));
@@ -2358,7 +2412,10 @@ function frame(now) {
   // because the occupied room or camera has changed.
   ambient.intensity = 0.18;
   scene.environmentIntensity = 0.08;
-  const shouldPlay = mode === 'playing' && state.channel > 0 && state.room === 0;
+  const shouldPlay =
+    mode === 'playing' &&
+    state.room === 0 &&
+    ([1, 2, 5].includes(state.channel) || (state.channel === 3 && state.inserted));
   if (shouldPlay !== mediaRunning) {
     mediaRunning = shouldPlay;
     if (shouldPlay) broadcastVideo.play().catch(() => {});
@@ -2397,6 +2454,7 @@ try {
   world = createWorld(scene);
   applyPuzzle(world, state.puzzle);
   roomRendering = new RoomRendering(world, scene);
+  surveillance = new Surveillance(world, scene.environment, cctvTarget);
   endingAssets.tape = world.rooms[3].tape;
   endingSequence = new EndingSequence({
     scene,
@@ -2416,10 +2474,7 @@ try {
   const preparation = new RenderPreparation(
     renderer,
     scene,
-    () =>
-      mode !== 'cinematic' &&
-      mode !== 'ending' &&
-      (mode !== 'playing' || (!transition && keys.size === 0 && !enemy))
+    () => mode !== 'cinematic' && mode !== 'ending' && !transition
   );
   $('loading-detail').textContent = 'PREPARANDO ILUMINACIÓN DE LA SALA';
   await preparation.prepare([world.rooms[0].group], {

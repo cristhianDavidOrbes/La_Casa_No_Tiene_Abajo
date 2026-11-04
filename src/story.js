@@ -1,6 +1,19 @@
 import { createPuzzle, validPuzzle } from './orientation-puzzle.js';
 import { chooseLockerRooms, validLockerRooms } from './locker.js';
 export const SAVE_KEY = 'casa-sin-abajo-v2';
+export function captureCheckpoint(state) {
+  return {
+    ...state,
+    room: 4,
+    tape: true,
+    rewound: true,
+    inserted: false,
+    released: false,
+    flashCharges: 1,
+    won: false,
+    visited: [...new Set([...state.visited, 4])]
+  };
+}
 export const fresh = () => ({
   version: 2,
   room: 0,
@@ -66,8 +79,6 @@ export function parseSave(raw) {
 }
 export function objective(s) {
   if (!s.letterRead) return 'Tengo que leer la carta de Julián. ¿Por qué me pidió venir?';
-  if (!s.watched)
-    return 'Tengo que ver las instrucciones del canal 02. Me sentaré en el sillón con E.';
   if (!s.fuse && !s.relays[0])
     return 'El motor no tiene corriente. Julián dejó un fusible en la mesa junto a la puerta.';
   if (!s.relays[0])
@@ -92,11 +103,10 @@ export function objective(s) {
     return s.room === 0
       ? 'He vuelto a la sala. Tengo que insertar «PARA VOLVER» en el receptor del televisor.'
       : 'Debo volver a la sala por los mismos umbrales por los que entré. Si encuentro la linterna, tendré un solo destello para aturdirlo.';
-  if (!s.released)
-    return 'Tengo que sentarme y ver la última grabación en el canal 03. Julián pidió que no la interrumpiera.';
+  if (!s.released) return 'La cinta está reproduciéndose. Julián pidió que no la interrumpiera.';
   return 'La señal se ha apagado. Ya puedo salir por la puerta de entrada y llevarme la cinta.';
 }
-export const letter = `Antes de que vacíen mi casa, salva la cinta PARA VOLVER del archivo del taller. Es la única copia de aquella tarde con ustedes.\n\nEl canal 02 explica cómo abrir el paso. Sigue el polvo: los umbrales también te dejan regresar.\n\nAntes de irte, reproduce la cinta en el televisor de la sala.\n\nConfía en mí una vez más.`;
+export const letter = `Antes de que vacíen mi casa, salva la cinta PARA VOLVER del archivo del taller. Es la única copia de aquella tarde con ustedes.\n\nEsta casa tiene comportamientos extraños. Los umbrales también te dejan regresar. Dejé una grabación de mantenimiento en el canal 02 por si necesitas ayuda.\n\nAntes de irte, reproduce la cinta en el televisor de la sala.\n\nConfía en mí una vez más.`;
 export const notes = {
   welcome: { title: 'Carta de Julián', body: letter },
   tape: {

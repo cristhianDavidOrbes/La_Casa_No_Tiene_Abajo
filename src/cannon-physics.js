@@ -457,6 +457,10 @@ export class CannonPhysics {
     prop.body.quaternion.copy(cq(prop.root.getWorldQuaternion(new Quaternion())));
     prop.body.aabbNeedsUpdate = true;
   }
+  removeProp(prop) {
+    this.world.removeBody(prop.body);
+    this.props.delete(prop);
+  }
   gravityField(prop) {
     let field = prop.room;
     const center = tv(prop.body.position);

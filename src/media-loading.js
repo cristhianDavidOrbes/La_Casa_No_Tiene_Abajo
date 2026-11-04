@@ -15,10 +15,10 @@ export function prepareVideo(video, url) {
   });
 }
 
-// Semana 3: los seis vídeos quedan en memoria antes de pulsar Comenzar.
+// Los canales sin señal y la cámara no descargan vídeos ni voces.
 export async function loadBroadcasts() {
   const videos = {};
-  const names = ['canal-01', 'canal-02', 'canal-03', 'canal-04', 'canal-05', 'para-volver'];
+  const names = ['canal-01', 'canal-02', 'canal-05', 'para-volver'];
   try {
     await loadPool(names, async (name) => {
       const data = await loadWithRetry('/assets/broadcasts/' + name + '.mp4', async (url) => {

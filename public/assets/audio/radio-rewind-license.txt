@@ -1,0 +1,11 @@
+Whisper #1 - Joseph SARDIN & Axeline T.
+https://bigsoundbank.com/whisper-1-s3255.html
+Original: https://bigsoundbank.com/UPLOAD/ogg/3255.ogg
+License: CC0 (public domain), as stated on the original download page.
+radio_whispers.ogg: layered pitch-shifted, filtered and reverberated 18-second derivative.
+
+Cassette: Back #7 - Joseph SARDIN
+https://bigsoundbank.com/audio-cassette-back-7-s2160.html
+Original: https://bigsoundbank.com/UPLOAD/ogg/2160.ogg
+License: CC0 (public domain), as stated on the original download page.
+tape_rewind.ogg: filtered, level-normalized derivative.

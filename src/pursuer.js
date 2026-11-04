@@ -5,6 +5,21 @@ import { insideHole } from './physics.js';
 import { makeGravityBody, stepGravityBody, gravityArrival } from './gravity.js';
 import { traversable, supportHeight, planClimbMotion } from './environment-navigation.js';
 const Y = new Vector3(0, 1, 0);
+const grids = new WeakMap();
+function navigationCells(room, portal) {
+  const signature =
+    room.openPortals.map((p) => p.link).join(',') +
+    '|' +
+    room.colliders.map((c) => (c.enabled === false ? 0 : 1)).join('');
+  let stored = grids.get(room);
+  if (!stored || stored.colliders !== room.colliders || stored.signature !== signature) {
+    stored = { colliders: room.colliders, signature, portals: new Map() };
+    grids.set(room, stored);
+  }
+  const key = portal?.link ?? -1;
+  if (!stored.portals.has(key)) stored.portals.set(key, new Map());
+  return stored.portals.get(key);
+}
 export function wallDistance(room, x, z) {
   return Math.min(room.w / 2 - Math.abs(x), room.d / 2 - Math.abs(z));
 }
@@ -43,6 +58,16 @@ class Heap {
   }
 }
 export function navigationPath(room, start, goal, portal, wallBias = 1.8) {
+  const cells = navigationCells(room, portal);
+  const cell = (x, z) => {
+    const key = x + ',' + z;
+    if (!cells.has(key))
+      cells.set(key, {
+        clear: traversable(room, x * 0.32, z * 0.32, portal),
+        height: supportHeight(room, x * 0.32, z * 0.32)
+      });
+    return cells.get(key);
+  };
   const step = 0.32,
     key = (x, z) => x + ',' + z,
     s = [Math.round(start.x / step), Math.round(start.z / step)],
@@ -69,8 +94,9 @@ export function navigationPath(room, start, goal, portal, wallBias = 1.8) {
       const x = n.x + dx,
         z = n.z + dz,
         nk = key(x, z);
-      if (!traversable(room, x * step, z * step, portal)) continue;
-      const height = supportHeight(room, x * step, z * step),
+      const sample = cell(x, z);
+      if (!sample.clear) continue;
+      const height = sample.height,
         g =
           n.g +
           1 +
@@ -86,13 +112,7 @@ export function navigationPath(room, start, goal, portal, wallBias = 1.8) {
   if (!found) return [];
   const path = [];
   while (found) {
-    path.push(
-      new Vector3(
-        found[0] * step,
-        supportHeight(room, found[0] * step, found[1] * step),
-        found[1] * step
-      )
-    );
+    path.push(new Vector3(found[0] * step, cell(found[0], found[1]).height, found[1] * step));
     found = parents.get(key(...found));
   }
   return path.reverse().slice(1).concat(goal.clone());
@@ -105,6 +125,9 @@ export function pursuitSpeed(distance, otherRoom, time, bipedal = false) {
 }
 export function attackRoute(random = Math.random) {
   return random() < 0.6 ? 'ceiling' : 'ground';
+}
+export function passageSpeed(distance) {
+  return MathUtils.clamp(4.2 + distance * 0.08, 4.2, 6.2);
 }
 export class Pursuer {
   constructor(room, point = new Vector3(-4.15, 0, 1.8), random = Math.random) {
@@ -192,11 +215,14 @@ export class Pursuer {
           );
         point.y = supportHeight(room, point.x, point.z);
         if (!hit || !traversable(room, point.x, point.z, null)) continue;
-        const path = navigationPath(room, p, point, null, 0.3);
-        if (!path.length) continue;
-        candidates.push({ ...side, point, distance: p.distanceTo(point), path });
+        candidates.push({ ...side, point, distance: p.distanceTo(point) });
       }
-    return candidates.sort((a, b) => a.distance - b.distance)[0] ?? null;
+    // Probar primero paredes próximas, en vez de calcular doce rutas completas de golpe.
+    for (const candidate of candidates.sort((a, b) => a.distance - b.distance).slice(0, 3)) {
+      const path = navigationPath(room, p, candidate.point, null, 0.3);
+      if (path.length) return { ...candidate, path };
+    }
+    return null;
   }
   setSurface(mode) {
     this.surfaceMode = mode;
@@ -340,7 +366,7 @@ export class Pursuer {
       this.stalledFor = 0;
     }
     if (this.body) {
-      const speed = this.body.field === this.body.link.a ? 2 : 1.55,
+      const speed = passageSpeed(this.position.distanceTo(target)),
         result = stepGravityBody(
           this.body,
           { side: 0, forward: 1, yaw: this.yaw, speed },

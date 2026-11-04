@@ -720,7 +720,8 @@ export function createWorld(scene) {
   light(r, [-4.6, 2.4, 1.4], '#809eaf', 7, 8);
   const r1 = rooms[1];
   prop(r1, 'desk', [-1.5, 0, -2.8], 0.9);
-  prop(r1, 'radio', [-1.5, 0.9, -2.8], 0.48, 0, false);
+  r1.radio = prop(r1, 'radio', [-1.5, 0.9, -2.8], 0.48, 0, false);
+  r1.radioBroken = false;
   r1.interactions.push({
     id: 'radio',
     type: 'radio',
@@ -895,6 +896,17 @@ export function applyPuzzle(world, puzzle) {
   }
 }
 export function updateWorld(world, state, dt, time, comfort, enemy = null) {
+  const radioRoom = world.rooms[1];
+  if (radioRoom.radioBroken !== state.relays[1]) {
+    radioRoom.radioBroken = state.relays[1];
+    radioRoom.radio.rotation.z = radioRoom.radioBroken ? 0.17 : 0;
+    const materials = new Set();
+    radioRoom.radio.traverse((o) => {
+      if (o.isMesh)
+        for (const m of Array.isArray(o.material) ? o.material : [o.material]) materials.add(m);
+    });
+    for (const m of materials) m.color.multiplyScalar(radioRoom.radioBroken ? 0.25 : 4);
+  }
   for (const room of world.rooms) {
     room.openPortals = room.portals.filter((p) => portalOpen(p, state));
     for (const p of room.portals) {
