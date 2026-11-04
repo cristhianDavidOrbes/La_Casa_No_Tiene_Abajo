@@ -14,20 +14,13 @@ import { configureWatcher } from './watcher-head.js';
 import { ThreatLightState } from './threat-light.js';
 import { bindRoomFill } from './room-lighting.js';
 import { BookBurst } from './book-burst.js';
+import { createBook } from './books.js';
 import { loadWithRetry, loadPool } from './asset-loading.js';
 import { createEntryDoor, ENTRY_DOOR } from './entry-door.js';
 const loader = new GLTFLoader(),
   models = {},
   textures = {};
-const furniture = [
-  'books',
-  'book-single-1',
-  'rugRectangle',
-  'lampWall',
-  'cardboardBoxClosed',
-  'speaker',
-  'computerKeyboard'
-];
+const furniture = ['rugRectangle', 'lampWall', 'cardboardBoxClosed', 'speaker', 'computerKeyboard'];
 const station = ['pipe', 'wall-switch'];
 const haven = [
   'television_02',
@@ -60,7 +53,8 @@ export async function loadAssets(progress) {
     ...station.map((n) => ['s-' + n, 'station/' + n + '.glb']),
     ...haven.map((n) => ['h-' + n, 'haven/' + n + '/' + n + '.gltf']),
     ['fuse', 'downloaded/ceramic-fuse.glb'],
-    ['changingLocker', 'downloaded/changing-locker.glb']
+    ['changingLocker', 'downloaded/changing-locker.glb'],
+    ['book-stendec', 'books/book-stendec.glb']
   ];
   let done = 0;
   const total = list.length + 14 + house.length;
@@ -690,7 +684,13 @@ export function createWorld(scene) {
   structure(r, 'rugRectangle', [2.5, 0.012, 3.2], [0, 0.009, -0.1], carpet);
   prop(r, 'sideTable', [-3.6, 0, 4.45], 0.75);
   prop(r, 'bookcaseOpen', [-4.2, 0, -3.7], 2.4, Math.PI / 2);
-  prop(r, 'books', [-4.1, 1.4, -3.7], 0.2, Math.PI / 2, false);
+  // Esta estantería gira 90°: colocar los libros usando su mismo marco local.
+  for (let n = 0; n < 6; n++) {
+    const book = createBook(models['book-stendec'], 0.24 + (n % 3) * 0.02, n);
+    book.position.set(-4.06, (0.9605 * 2.4) / 2.063442, -3.7 - (n - 2.5) * 0.12);
+    book.rotation.y = Math.PI / 2;
+    r.group.add(book);
+  }
   const entryDoor = createEntryDoor(
     r,
     models['house-Structure_Wall_Door'],
@@ -751,23 +751,12 @@ export function createWorld(scene) {
     for (const [row, board] of [0.3919, 0.9605, 1.6634].entries())
       for (let n = 0; n < 5; n++) {
         const height = 0.24 + ((n + row + index) % 4) * 0.02,
-          root = instance('book-single-1', { height, raw: true }),
+          root = createBook(models['book-stendec'], height, n + row + index),
           pivot = new THREE.Group();
         root.position.y = -height / 2;
         pivot.add(root);
         pivot.position.set(x + (n - 2) * 0.18, (board * 2.1) / 2.063442 + height / 2, -3.4);
         r3.group.add(pivot);
-        const tint = ['#28151c', '#17251e', '#1c2230', '#2c241b', '#242127'][(n + row + index) % 5];
-        root.traverse((o) => {
-          if (o.isMesh) {
-            const materials = Array.isArray(o.material) ? o.material : [o.material];
-            for (const m of materials) {
-              m.roughness = 0.94;
-              if (m.name === 'carpetDarker') m.color.set(tint);
-              else m.color.set('#a8a08a');
-            }
-          }
-        });
         books.push({ root: pivot, shelf });
       }
     archiveShelves.push({ index, root: shelf, center: new THREE.Vector3(x, 1, -3.3), books });

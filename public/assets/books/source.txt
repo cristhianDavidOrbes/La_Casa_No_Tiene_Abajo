@@ -1,0 +1,8 @@
+Book - stendec
+Source selected by user: https://blendswap.com/blend/6154
+Original archive listing: http://www.blendswap.com/blends/view/50804
+License: CC0 / Public Domain (see LICENSE.txt, preserved from Book.zip)
+Source ZIP SHA-256: 87c46663e743136e25db80f679f422956abcbfcc87182739f9d85a5fdbefd3f0
+Conversion: scripts/preparar-libro.py; 996 triangles; no external textures.
+Changes: one subdivision level, standing orientation, 30 cm reference height,
+separate PBR cover/pages materials; game assigns varied dark cover colors.
