@@ -3,7 +3,7 @@ import './letter.css';
 import * as THREE from 'three';
 import { loadEnvironment } from './environment.js';
 import { loadBroadcasts, prepareVideo } from './media-loading.js';
-import { prepareShaders } from './shader-loading.js';
+import { RenderPreparation } from './render-preparation.js';
 import { loadAssets, createWorld, updateWorld, applyPuzzle, applyLockerLayout } from './house.js';
 import { EYE_HEIGHT, smoothstep, collisionAt, insideHole } from './physics.js';
 import { SAVE_KEY, fresh, parseSave, objective, notes, letter } from './story.js';
@@ -2167,111 +2167,51 @@ window.addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
-let warming = false;
-async function prewarmRendering() {
-  // Upload every reused texture and compile each room's light arrangement before
-  // gameplay. The flash uses the same shader because its light stays present.
-  warming = true;
-  const smallTarget = new THREE.WebGLRenderTarget(96, 64),
-    oldTarget = renderer.getRenderTarget(),
-    oldShadowUpdate = renderer.shadowMap.autoUpdate,
-    oldCreature = world.creature.visible,
-    oldWatcher = world.watcher.visible,
-    frustumFlags = [];
+async function prepareRemainingRooms(preparation) {
   try {
-    // Subir las mallas no requiere dibujar una sombra de 1024² cinco veces.
-    renderer.shadowMap.autoUpdate = false;
-    // Compile alone does not upload vertex buffers for meshes outside the view.
-    // Draw all resident meshes once while loading, then restore normal culling.
-    scene.traverse((object) => {
-      if (object.isMesh) {
-        frustumFlags.push([object, object.frustumCulled]);
-        object.frustumCulled = false;
+    // El siguiente cuarto tiene prioridad; el final se prepara de último.
+    const pending = world.rooms.slice(1);
+    let videoPrepared = false;
+    while (pending.length) {
+      pending.sort((a, b) => Math.abs(a.id - state.room) - Math.abs(b.id - state.room));
+      const room = pending.shift();
+      const roots = [
+        room.group,
+        ...world.connectors
+          .filter((c) => c.link.a === room.id || c.link.b === room.id)
+          .map((c) => c.group)
+      ];
+      try {
+        await preparation.prepare(roots, { background: true });
+      } catch (error) {
+        // Un fallo de preparación anticipada no vuelve a bloquear una partida iniciada.
+        console.warn(`Preparación del cuarto ${room.id}:`, error);
       }
-    });
-    const textureSlots = [
-      'map',
-      'normalMap',
-      'roughnessMap',
-      'metalnessMap',
-      'aoMap',
-      'emissiveMap',
-      'alphaMap',
-      'bumpMap',
-      'displacementMap',
-      'lightMap'
-    ];
-    const textures = new Set();
-    scene.traverse((o) => {
-      if (!o.material) return;
-      for (const m of Array.isArray(o.material) ? o.material : [o.material])
-        for (const slot of textureSlots)
-          if (m[slot]?.isTexture && m[slot].image) textures.add(m[slot]);
-    });
-    let uploaded = 0;
-    for (const texture of textures) {
-      renderer.initTexture(texture);
-      uploaded++;
-      const percent = 65 + Math.round((uploaded / Math.max(1, textures.size)) * 20);
-      $('loading-detail').textContent = `PREPARANDO TEXTURAS / ${uploaded} DE ${textures.size}`;
-      $('loading-percent').textContent = percent + '%';
-      $('loading-bar').style.width = percent + '%';
-      if (uploaded % 2 === 0) await new Promise((resolve) => requestAnimationFrame(resolve));
+      roomRendering.preparedRooms.add(room.id);
+      if (!videoPrepared) {
+        const videoMaterial = world.rooms[0].tv.screen.clone();
+        videoMaterial.map = broadcastTexture;
+        const screens = endingSequence.screen.slots.map(({ mesh, slot }) => {
+          const copy = mesh.clone(false);
+          copy.material = mesh.material.slice();
+          copy.material[slot] = videoMaterial;
+          return copy;
+        });
+        try {
+          await preparation.prepare(screens, { background: true });
+        } catch (error) {
+          console.warn('Preparación del vídeo:', error);
+        }
+        videoPrepared = true;
+      }
     }
-    for (let roomId = 0; roomId < world.rooms.length; roomId++) {
-      $('loading-detail').textContent =
-        `PREPARANDO ILUMINACIÓN / ${roomId + 1} DE ${world.rooms.length}`;
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      roomRendering.update(roomId);
-      world.creature.visible = true;
-      world.creature.position.copy(world.worldPoint(roomId, new THREE.Vector3(0, 0, 0)));
-      world.creature.quaternion.copy(roomQuaternion(roomId));
-      world.watcher.visible = true;
-      world.watcher.position.copy(world.worldPoint(roomId, new THREE.Vector3(3, -1.1, 0)));
-      world.watcher.quaternion.copy(roomQuaternion(roomId));
-      const eye = world.worldPoint(roomId, new THREE.Vector3(0, 1.68, 1.5));
-      camera.position.copy(eye);
-      camera.quaternion.copy(roomQuaternion(roomId));
-      camera.updateMatrixWorld(true);
-      flashlight.intensity = 78;
-      flashlight.position.copy(eye);
-      flashlight.target.position.copy(world.worldPoint(roomId, new THREE.Vector3(0, 1.5, -2)));
-      await prepareShaders(renderer, scene, camera);
-      renderer.setRenderTarget(smallTarget);
-      renderer.render(scene, camera);
-      renderer.setRenderTarget(oldTarget);
-      const stage = roomId + 1,
-        percent = 85 + Math.round((stage / world.rooms.length) * 10);
-      $('loading-detail').textContent =
-        `PREPARANDO LUZ Y HABITACIÓN / ${stage} DE ${world.rooms.length}`;
-      $('loading-percent').textContent = percent + '%';
-      $('loading-bar').style.width = percent + '%';
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-    }
-    // Preparar también la variante de vídeo evita compilarla al sentarse en el TV.
-    const screen = world.rooms[0].tv.screen;
-    const originalMap = screen.map;
-    try {
-      setTVTexture(broadcastTexture);
-      roomRendering.update(0);
-      camera.position.set(0, 1.68, 1.5);
-      camera.quaternion.identity();
-      await prepareShaders(renderer, scene, camera);
-      renderer.setRenderTarget(smallTarget);
-      renderer.render(scene, camera);
-    } finally {
-      setTVTexture(originalMap);
-    }
+    await preparation.prepare([world.creature, world.watcher], { background: true });
+    await endingSequence.prewarm(preparation);
+  } catch (error) {
+    console.warn('Preparación en segundo plano:', error);
   } finally {
-    renderer.setRenderTarget(oldTarget);
-    smallTarget.dispose();
-    for (const [object, flag] of frustumFlags) object.frustumCulled = flag;
-    renderer.shadowMap.autoUpdate = oldShadowUpdate;
-    world.creature.visible = oldCreature;
-    world.watcher.visible = oldWatcher;
-    flashlight.intensity = 0;
-    roomRendering.update(0);
-    warming = false;
+    roomRendering.exteriorPrepared = true;
+    preparation.dispose();
   }
 }
 
@@ -2286,7 +2226,7 @@ function frame(now) {
     dt = Math.min(rawDt, 0.05);
   last = now;
   frameTime += dt;
-  if (!ready || warming) return;
+  if (!ready) return;
   const shadowRoom = transition?.field ?? state.room;
   if (now >= nextShadowUpdate || shadowRoom !== lastShadowRoom) {
     renderer.shadowMap.needsUpdate = true;
@@ -2467,12 +2407,19 @@ try {
   $('loading-detail').textContent = 'PREPARANDO SONIDO Y EMISIONES';
   [, broadcasts] = await mediaReady;
   await prepareVideo(broadcastVideo, broadcasts['canal-01']);
-  await prewarmRendering();
-  warming = true;
-  $('loading-detail').textContent = 'PREPARANDO LA ÚLTIMA SEÑAL';
-  await endingSequence.prewarm();
-  warming = false;
+  roomRendering.preparedRooms = new Set([0]);
+  roomRendering.exteriorPrepared = false;
   roomRendering.update(0);
+  const preparation = new RenderPreparation(renderer, scene);
+  $('loading-detail').textContent = 'PREPARANDO ILUMINACIÓN DE LA SALA';
+  await preparation.prepare([world.rooms[0].group], {
+    onProgress: (progress) => {
+      const percent = 65 + Math.round(progress * 35);
+      $('loading-detail').textContent = 'PREPARANDO ILUMINACIÓN DE LA SALA';
+      $('loading-percent').textContent = percent + '%';
+      $('loading-bar').style.width = percent + '%';
+    }
+  });
   ready = true;
   $('start').disabled = false;
   $('start').textContent = 'Comenzar';
@@ -2485,6 +2432,8 @@ try {
   $('continue').hidden = false;
   $('continue').disabled = !saved();
   refreshHUD();
+  // No esperar estos cuartos para habilitar Comenzar ni detener el bucle del juego.
+  void prepareRemainingRooms(preparation);
 } catch (error) {
   console.error(error);
   const message =

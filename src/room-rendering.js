@@ -15,6 +15,8 @@ export function setExteriorVisible(world, visible) {
 export class RoomRendering {
   constructor(world, scene) {
     this.world = world;
+    this.preparedRooms = null;
+    this.exteriorPrepared = true;
     const regions = [
       ...world.rooms.map((room) => ({ ids: [room.id], sources: room.lights })),
       ...world.connectors.map((c) => ({ ids: [c.link.a, c.link.b], sources: c.lights ?? [] }))
@@ -63,7 +65,7 @@ export class RoomRendering {
     });
   }
   update(activeRoom, transition = null, eye = null) {
-    setExteriorVisible(this.world, activeRoom === 0);
+    setExteriorVisible(this.world, activeRoom === 0 && this.exteriorPrepared);
     const visible = new Set(
       this.world.rooms.filter((room) => Math.abs(room.id - activeRoom) <= 1).map((room) => room.id)
     );
@@ -71,7 +73,13 @@ export class RoomRendering {
       visible.add(transition.link.a);
       visible.add(transition.link.b);
     }
-    for (const room of this.world.rooms) room.group.visible = visible.has(room.id);
+    for (const room of this.world.rooms) {
+      // No dibujar antes de tiempo cuartos vecinos que aún están preparando su GPU.
+      // Entrar o continuar una partida siempre muestra el cuarto ocupado.
+      room.group.visible =
+        visible.has(room.id) &&
+        (!this.preparedRooms || this.preparedRooms.has(room.id) || room.id === activeRoom);
+    }
     for (const caster of this.casters) {
       caster.mesh.castShadow = caster.large && caster.room === activeRoom;
     }
@@ -106,6 +114,8 @@ export class RoomRendering {
     this.shadow.intensity = source.intensity;
     this.shadow.color.copy(source.color);
     for (const connector of this.world.connectors)
-      connector.group.visible = visible.has(connector.link.a) && visible.has(connector.link.b);
+      connector.group.visible =
+        this.world.rooms[connector.link.a].group.visible &&
+        this.world.rooms[connector.link.b].group.visible;
   }
 }

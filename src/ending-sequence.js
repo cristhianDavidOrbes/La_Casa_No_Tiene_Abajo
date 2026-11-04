@@ -3,7 +3,6 @@ import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { solveLimb } from './creature-motion.js';
 import { setExteriorVisible } from './room-rendering.js';
-import { prepareShaders } from './shader-loading.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const clamp = THREE.MathUtils.clamp;
@@ -335,42 +334,24 @@ export class EndingSequence {
     this.tv.screen = enabled ? this.crt : this.screen.slots[0].material;
   }
 
-  async prewarm() {
-    const target = this.renderer.getRenderTarget(),
-      visible = this.hero.visible,
-      position = this.hero.position.clone(),
-      screen = this.tv.screen;
-    const exteriorVisible = this.exterior.visible;
-    const feedViewport = this.feedTarget.viewport.clone();
-    setExteriorVisible(this.world, true);
-    // A distinct scratch target is important: the CRT samples feedTarget.
-    const scratch = new THREE.WebGLRenderTarget(64, 64);
-    this.hero.visible = true;
-    this.hero.position.set(-3.2, 0, 7.5);
-    this.exterior.updateWorldMatrix(true, true);
+  async prewarm(preparation) {
+    // El final también se prepara en copias: nunca mover la cámara, el actor o el TV reales.
+    await preparation.prepare([this.exterior], { background: true });
+    const target = this.renderer.getRenderTarget();
     try {
-      // Reservar la textura completa, pero preparar sus shaders dibujando pocos píxeles.
-      this.feedTarget.viewport.set(0, 0, 96, 72);
       this.renderer.initRenderTarget(this.feedTarget);
-      this.feedCamera.position.set(0, 2.5, 13);
-      this.feedCamera.lookAt(-2, 1.1, 6);
       this.renderer.setRenderTarget(this.feedTarget);
       this.renderer.clear();
-      await prepareShaders(this.renderer, this.scene, this.feedCamera);
-      this.renderer.render(this.scene, this.feedCamera);
-      this.swapScreen(true);
-      await prepareShaders(this.renderer, this.scene, this.camera);
-      this.renderer.setRenderTarget(scratch);
-      this.renderer.render(this.scene, this.camera);
     } finally {
-      this.feedTarget.viewport.copy(feedViewport);
-      setExteriorVisible(this.world, exteriorVisible);
-      this.swapScreen(screen === this.crt);
-      this.hero.visible = visible;
-      this.hero.position.copy(position);
       this.renderer.setRenderTarget(target);
-      scratch.dispose();
     }
+    const screens = this.screen.slots.map(({ mesh, slot }) => {
+      const copy = mesh.clone(false);
+      copy.material = mesh.material.slice();
+      copy.material[slot] = this.crt;
+      return copy;
+    });
+    await preparation.prepare(screens, { background: true });
   }
 
   start() {
