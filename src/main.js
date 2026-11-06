@@ -2489,7 +2489,6 @@ try {
   $('loading-detail').textContent = 'PREPARANDO SONIDO Y EMISIONES';
   [, broadcasts] = await mediaReady;
   await prepareVideo(broadcastVideo, broadcasts['canal-01']);
-  roomRendering.preparedRooms = new Set([0]);
   roomRendering.exteriorPrepared = false;
   roomRendering.update(0);
   const preparation = new RenderPreparation(
@@ -2512,7 +2511,7 @@ try {
     return copy;
   });
   // Toda la geometría/materiales de los cinco cuartos y cuatro túneles se
-  // prepara aquí. Cruzar solo cambia transformaciones, visibilidad e intensidad.
+  // prepara aquí y permanece en escena al cruzar.
   await preparation.prepare(
     [
       world.architecture,
@@ -2533,7 +2532,6 @@ try {
   );
   $('loading-detail').textContent = 'PREPARANDO CÁMARA DEL TALLER';
   await surveillance.prepare(renderer, () => true);
-  roomRendering.preparedRooms = new Set(world.rooms.map((room) => room.id));
   // La pasada de sombras usa otro programa: prepararla también para cada cuarto
   // evita compilar el material de profundidad al cruzar por primera vez.
   world.creature.visible = world.watcher.visible = true;

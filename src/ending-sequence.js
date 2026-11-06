@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { solveLimb } from './creature-motion.js';
-import { setExteriorVisible, updateArchitectureVisibility } from './room-rendering.js';
+import { setExteriorVisible, setEndingArchitecture } from './room-rendering.js';
 import { createRoad } from './road.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -385,7 +385,7 @@ export class EndingSequence {
     this.world.rooms.forEach((room) => {
       room.group.visible = room.id === 0;
     });
-    updateArchitectureVisibility(this.world);
+    setEndingArchitecture(this.world, true);
     this.world.connectors.forEach((c) => {
       c.group.visible = false;
     });
@@ -623,7 +623,7 @@ export class EndingSequence {
       this.world.rooms.forEach((room, i) => {
         room.group.visible = saved.roomVisibility[i];
       });
-      updateArchitectureVisibility(this.world);
+      setEndingArchitecture(this.world, false);
       this.world.connectors.forEach((c, i) => {
         c.group.visible = saved.connectorVisibility[i];
       });

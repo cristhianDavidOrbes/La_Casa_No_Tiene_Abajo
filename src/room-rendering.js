@@ -10,23 +10,18 @@ export function setExteriorVisible(world, visible) {
   for (const { light, power } of exterior.lights) light.intensity = visible ? power : 0;
 }
 
-// El archivo de Blender permanece unido; solo se ocultan sus grupos de material.
-export function updateArchitectureVisibility(world) {
+// La toma exterior final usa solamente la sala. Durante el juego se ve la casa completa.
+export function setEndingArchitecture(world, ending) {
   world.architecture.traverse((mesh) => {
     if (!mesh.isMesh) return;
-    const id = mesh.userData.room;
-    mesh.visible =
-      world.rooms[id].group.visible &&
-      (!mesh.userData.connector || world.rooms[id + 1].group.visible);
+    mesh.visible = !ending || (mesh.userData.room === 0 && !mesh.userData.connector);
   });
 }
 
-// Geometry is resident from startup. Changing rooms changes uniforms and the
-// visible geometry window, not the shader's light/shadow counts or GPU targets.
+// La geometría queda en escena. Al cruzar solo se reasignan las luces cercanas.
 export class RoomRendering {
   constructor(world, scene) {
     this.world = world;
-    this.preparedRooms = null;
     this.exteriorPrepared = true;
     const regions = [
       ...world.rooms.map((room) => ({ ids: [room.id], sources: room.lights })),
@@ -80,32 +75,24 @@ export class RoomRendering {
   }
   update(activeRoom, transition = null, eye = null) {
     setExteriorVisible(this.world, activeRoom === 0 && this.exteriorPrepared);
-    const visible = new Set(
+    const nearby = new Set(
       this.world.rooms.filter((room) => Math.abs(room.id - activeRoom) <= 1).map((room) => room.id)
     );
     if (transition) {
-      visible.add(transition.link.a);
-      visible.add(transition.link.b);
+      nearby.add(transition.link.a);
+      nearby.add(transition.link.b);
     }
-    for (const room of this.world.rooms) {
-      // No dibujar antes de tiempo cuartos vecinos que aún están preparando su GPU.
-      // Entrar o continuar una partida siempre muestra el cuarto ocupado.
-      room.group.visible =
-        visible.has(room.id) &&
-        (!this.preparedRooms || this.preparedRooms.has(room.id) || room.id === activeRoom);
-    }
-    updateArchitectureVisibility(this.world);
     for (const caster of this.casters) {
       caster.mesh.castShadow = caster.large && caster.room === activeRoom;
     }
     const origin = eye ?? this.world.rooms[activeRoom].group.localToWorld(new Vector3(0, 1.68, 0));
-    const candidates = this.sources.filter(({ rooms }) => rooms.every((id) => visible.has(id)));
+    const candidates = this.sources.filter(({ rooms }) => rooms.every((id) => nearby.has(id)));
     const score = ({ rooms, source, position }) =>
       position.distanceToSquared(origin) / Math.max(1, source.light.distance ** 2) +
       (rooms.includes(activeRoom) ? 0 : 2);
     candidates.sort((a, b) => score(a) - score(b));
-    // Reservar el foco central de cada cuarto visible conserva sus parpadeos.
-    const selected = [...visible]
+    // Reservar el foco central de cada cuarto cercano conserva sus parpadeos.
+    const selected = [...nearby]
       .map((id) => candidates.find(({ source }) => source.light === this.world.rooms[id].bulb.lamp))
       .filter(Boolean);
     for (const candidate of candidates) {
@@ -128,9 +115,5 @@ export class RoomRendering {
     this.shadow.target.position.copy(source.target.getWorldPosition(new Vector3()));
     this.shadow.intensity = source.intensity;
     this.shadow.color.copy(source.color);
-    for (const connector of this.world.connectors)
-      connector.group.visible =
-        this.world.rooms[connector.link.a].group.visible &&
-        this.world.rooms[connector.link.b].group.visible;
   }
 }
