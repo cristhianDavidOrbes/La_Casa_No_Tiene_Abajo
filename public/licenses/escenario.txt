@@ -1,0 +1,10 @@
+Escenario estructural del juego: creado en Blender con el script scripts/modelar-escenario.py.
+El archivo escenario.blend contiene una única malla de cinco habitaciones y cuatro conexiones, con sus aberturas.
+Las medidas provienen de src/architecture.js y src/level.js, compartidas con los cuerpos estáticos de Cannon.
+Las puertas y objetos móviles se cargan por separado para conservar sus funciones.
+
+Texturas CC0: Wood Floor (Dimitrios Savva) https://polyhaven.com/a/wood_floor
+Painted Plaster Wall (Amal Kumar) https://polyhaven.com/a/painted_plaster_wall
+Licencia: https://polyhaven.com/license
+
+El GLB exportado incluye UV, materiales y seis texturas empaquetadas.

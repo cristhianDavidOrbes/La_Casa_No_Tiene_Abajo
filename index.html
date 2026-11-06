@@ -130,10 +130,24 @@
           <span class="eyebrow"><span class="rec-dot"></span> REC</span>
           <div id="clock">00:00:00</div>
         </div>
-        <div class="location">
-          <span id="zone">01 / LA SALA</span><small id="gravity">GRAVEDAD ESTABLE</small>
+        <div class="location" hidden aria-hidden="true">
+          <span id="zone">01 / LA SALA</span><small id="gravity">GRAVEDAD ESTABLE</small
+          ><small id="coordinates">X 0.0 · Y 0.0 · Z 0.0</small>
         </div>
       </div>
+      <figure id="floor-map" aria-label="Mapa 2D: ubicación actual del jugador">
+        <svg
+          viewBox="0 0 290 206"
+          role="img"
+          aria-label="Cinco habitaciones conectadas por sus túneles; el punto indica tu ubicación"
+        >
+          <g id="map-rooms" class="map-rooms"></g>
+          <g id="map-links" class="map-links"></g>
+          <g id="map-labels" class="map-labels"></g>
+          <circle id="map-player" cx="45" cy="45" r="4" />
+        </svg>
+        <figcaption><span>● TÚ</span></figcaption>
+      </figure>
       <div id="objective">
         <span>SEÑAL PENDIENTE</span>
         <p></p>

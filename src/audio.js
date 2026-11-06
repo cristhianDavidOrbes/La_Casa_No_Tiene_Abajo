@@ -1,6 +1,8 @@
 import { Audio, AudioContext as ThreeAudioContext, AudioListener, PositionalAudio } from 'three';
 
-// Semana 3: cámara = oyente; cada golpe o voz ocupa una posición en la casa.
+// SEMANAS 3 y 9: el oyente viaja con la cámara y los efectos tienen posición 3D.
+// Para exponer: init() conecta AudioListener; play() crea Audio/PositionalAudio.
+// La mezcla, la precarga y los efectos específicos conservan las reglas del juego.
 const FILES = [
   ...Array.from({ length: 5 }, (_, i) => `footstep_wood_00${i}`),
   ...Array.from({ length: 5 }, (_, i) => `footstep_concrete_00${i}`),
@@ -71,6 +73,7 @@ export class Soundscape {
     }
     this.ctx = new AudioContext();
     ThreeAudioContext.setContext(this.ctx);
+    // SEMANA 3: la cámara representa los oídos del jugador.
     this.listener = new AudioListener();
     camera.add(this.listener);
     this.scene = scene;
@@ -148,14 +151,19 @@ export class Soundscape {
     if (!this.ctx) return;
     paused ? this.ctx.suspend() : this.ctx.resume();
   }
-  play(name, volume = 0.3, rate = 1, position = null) {
+  play(name, volume = 0.3, rate = 1, position = null, anchor = null) {
     if (!this.buffers[name] || !this.ctx) return;
+    // SEMANA 9, diapositivas 9–11: el emisor espacial permite localizar un sonido.
     const sound = position ? new PositionalAudio(this.listener) : new Audio(this.listener);
     sound.setBuffer(this.buffers[name]).setVolume(volume).setPlaybackRate(rate);
     if (position) {
+      // Al alejarnos del emisor se reduce su volumen; la posición es mundial.
       sound.setRefDistance(2).setMaxDistance(25).setRolloffFactor(0.6);
       sound.position.copy(position);
-      this.scene.add(sound);
+      if (anchor) {
+        anchor.add(sound);
+        sound.position.set(0, 0, 0);
+      } else this.scene.add(sound);
     }
     sound.onEnded = () => {
       sound.isPlaying = false;
@@ -167,10 +175,10 @@ export class Soundscape {
     sound.updateMatrixWorld(true);
     return sound;
   }
-  radioWhispers(strength, position) {
+  radioWhispers(strength, position, anchor) {
     if (!this.ctx || !this.buffers.radio_whispers) return;
     if (!this.radioVoice && strength > 0.001) {
-      this.radioVoice = this.play('radio_whispers', 0, 0.85, position);
+      this.radioVoice = this.play('radio_whispers', 0, 0.85, position, anchor);
       this.radioVoice.setLoop(true);
     }
     if (this.radioVoice) {
@@ -280,6 +288,8 @@ export class Soundscape {
       return;
     // AudioListener transforma posición y orientación junto a la cámara.
     camera.updateMatrixWorld(true);
+    if (this.ctx.currentTime < (this.nextMix ?? 0)) return;
+    this.nextMix = this.ctx.currentTime + 0.1;
     if (this.ready) {
       this.drone.frequency.setTargetAtTime(48 - room * 4, this.ctx.currentTime, 0.8);
       this.droneGain.gain.setTargetAtTime(

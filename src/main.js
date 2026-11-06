@@ -1,6 +1,7 @@
 import './style.css';
 import './letter.css';
 import * as THREE from 'three';
+import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 import { loadEnvironment } from './environment.js';
 import { loadBroadcasts, prepareVideo } from './media-loading.js';
 import { RenderPreparation } from './render-preparation.js';
@@ -15,7 +16,14 @@ import {
   letter,
   captureCheckpoint
 } from './story.js';
-import { portalOpen, roomQuaternion, localPosition } from './level.js';
+import {
+  portalOpen,
+  roomQuaternion,
+  localPosition,
+  createFloorPlan,
+  floorPlanRoomPoint,
+  floorPlanTunnelPoint
+} from './level.js';
 import {
   collisionWorld,
   makeGravityBody,
@@ -59,19 +67,32 @@ import {
 import { LockerSearch } from './locker.js';
 import { chairIcon, mountInstrumentArt } from './ui-art.js';
 
-// Recorrido para explicar el juego: escena -> recursos -> eventos -> física -> render.
-// Semanas 1–2: main/house; 3: audio y TV; 4: luces y polvo; 5–6: Cannon.
-// Semanas 7–8: HDR y GLB; 9: distancias, puzles, zonas y accesos entre cuartos.
-// Ampliaciones necesarias: persecución, apoyos IK, gravedad por cuarto y final del CRT.
+/* Recorrido de exposición sobre el código REAL de este juego:
+ * 1. Three.js: escena, cámara y renderer, aquí debajo; animate() dibuja la casa.
+ * 2. Mesh, PBR, texturas, grupos y transformaciones: house.js, loadAssets()/instance().
+ * 3. VideoTexture: aquí; AudioListener y PositionalAudio: audio.js, init()/play().
+ * 4. Luces y sombras: aquí y house.js, lamp(); partículas: dust()/updateWorld().
+ * 5. Cannon: cannon-physics.js, constructor()/box()/step()/syncProp().
+ * 6. WASD: movementInput() y eventos de teclado; salto por impulso: jump() en Cannon.
+ * 7. GLTFLoader: house.js; HDR e iluminación IBL: environment.js.
+ * 8. Blender: scripts/preparar-tutorial.py; modelos exportados en public/models/.
+ * 9. Distancias y zonas: targetInteraction(), insideHole() y portalCooldown.
+ * 10. Escenario Blender, PointerLockControls, mapa/HUD y arquitectura espejo Cannon.
+ * Las reglas de los puzles, monstruo, guardado y final permanecen en sus archivos.
+ * Para exponer, seguir estos bloques; HTML y CSS solo presentan la interfaz.
+ */
 const $ = (id) => document.getElementById(id),
   show = (id, on = true) => $(id).classList.toggle('hidden', !on);
 mountInstrumentArt();
-// 1. Semanas 1 y 2: escena, cámara, materiales y renderizador.
+// SEMANA 1, diapositivas 8–20: Three.js usa WebGL para dibujar con la GPU.
+// Scene contiene la casa, Camera define la vista y Renderer produce la imagen.
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('#070c0b');
+// SEMANA 9: la niebla atenúa los objetos lejanos y da profundidad al interior.
 scene.fog = new THREE.FogExp2('#0b1210', 0.022);
 const normalFogColor = new THREE.Color('#0b1210'),
   blackFogColor = new THREE.Color('#000000');
+// Cámara en perspectiva: campo visual, proporción, plano cercano y plano lejano.
 const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.045, 90);
 let renderer;
 try {
@@ -81,10 +102,11 @@ try {
     '<span class="error">WebGL 2 no está disponible. Abre el juego en Chrome o Edge con aceleración gráfica.</span>';
   throw e;
 }
-const renderBudget = new RenderBudget(Math.min(devicePixelRatio, 1.5));
+const renderBudget = new RenderBudget(Math.min(devicePixelRatio, 1), innerWidth * innerHeight);
 renderer.setPixelRatio(renderBudget.ratio);
 renderer.setSize(innerWidth, innerHeight);
 renderer.localClippingEnabled = true;
+// SEMANA 4, diapositivas 10–11: shadowMap permite proyectar sombras.
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFShadowMap;
 // Una sombra a 15 Hz durante el movimiento; en el menú se conserva su mapa.
@@ -93,11 +115,18 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.1;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 $('game').appendChild(renderer.domElement);
-// 2. Semanas 4 y 7: relleno HDR y luces locales con una sombra compartida.
+// Semana 10: PointerLockControls controla la mirada local; el grupo de la
+// habitación aplica después su gravedad a la cámara que dibuja la escena.
+const lookCamera = new THREE.PerspectiveCamera();
+const lookControls = new PointerLockControls(lookCamera, renderer.domElement);
+renderer.domElement.addEventListener('pointerlockerror', () =>
+  toast('Mantén pulsado el ratón para mirar. WASD para caminar.', 7)
+);
+
+// SEMANA 4, diapositivas 7–9: AmbientLight rellena; SpotLight dirige el destello.
 const ambient = new THREE.AmbientLight('#c1d6cd', 0.18);
 scene.add(ambient);
-// Keep the spot in the light set at zero intensity between pulses. Toggling
-// visibility would force every material to compile a new shader during play.
+// Optimización del juego: mantener esta luz creada y variar solo su intensidad.
 const flashlight = new THREE.SpotLight('#eaf7db', 0, 28, 0.72, 0.65, 1.2);
 flashlight.castShadow = false;
 scene.add(flashlight, flashlight.target);
@@ -108,7 +137,8 @@ broadcastVideo.playsInline = true;
 broadcastVideo.loop = false;
 broadcastVideo.preload = 'auto';
 broadcastVideo.muted = true;
-// Semana 3: Three.js actualiza el vídeo directamente sobre el cristal del TV.
+// SEMANA 3: el elemento video suministra los fotogramas a VideoTexture.
+// broadcast() asigna esta textura al material del cristal: el vídeo se ve en el TV 3D.
 const broadcastTexture = new THREE.VideoTexture(broadcastVideo);
 broadcastTexture.colorSpace = THREE.SRGBColorSpace;
 let mediaRunning = false;
@@ -256,13 +286,33 @@ function addNote(id, notify = true) {
     if (notify) toast('REGISTRO ACTUALIZADO / J\n' + notes[id].title);
   }
 }
-function persist() {
+let pendingSave = null,
+  saveDirty = false;
+function writeSave() {
+  pendingSave = null;
+  if (!saveDirty) return;
+  saveDirty = false;
   try {
     localStorage.setItem(SAVE_KEY, JSON.stringify({ ...state, won: false }));
   } catch {
     toast('El navegador no permite guardar. Puedes continuar jugando.');
   }
 }
+function persist() {
+  saveDirty = true;
+  if (pendingSave !== null) clearTimeout(pendingSave);
+  const schedule = () => {
+    if (transition) {
+      pendingSave = setTimeout(schedule, 300);
+      return;
+    }
+    if (typeof requestIdleCallback === 'function') {
+      requestIdleCallback(() => (transition ? persist() : writeSave()), { timeout: 2000 });
+    } else writeSave();
+  };
+  pendingSave = setTimeout(schedule, 300);
+}
+window.addEventListener('pagehide', writeSave);
 function saved() {
   try {
     return parseSave(localStorage.getItem(SAVE_KEY));
@@ -464,15 +514,17 @@ async function startGame(resume = false) {
 function requestLock() {
   if (seated || mode !== 'playing') return;
   try {
-    const result = renderer.domElement.requestPointerLock();
-    result?.catch(() => toast('Mantén pulsado el ratón para mirar. WASD para caminar.', 7));
+    lookCamera.rotation.set(pitch, yaw, 0, 'YXZ');
+    renderer.domElement
+      .requestPointerLock()
+      ?.catch(() => toast('Mantén pulsado el ratón para mirar. WASD para caminar.', 7));
   } catch {
     toast('Mantén pulsado el ratón para mirar. WASD para caminar.', 7);
   }
 }
 function unlock() {
   pausedLock = true;
-  if (document.pointerLockElement) document.exitPointerLock();
+  if (document.pointerLockElement) lookControls.unlock();
   setTimeout(() => (pausedLock = false), 160);
 }
 function pauseGame() {
@@ -695,7 +747,7 @@ function closeRadioScreen() {
 function updateRadioHaunt(dt) {
   const position = world.worldPoint(1, new THREE.Vector3(-1.5, 1.2, -2.6));
   const result = radioHaunt.update(radioFrequency(), dt);
-  if (!radioHaunt.exploded) audio.radioWhispers(result.strength, position);
+  if (!radioHaunt.exploded) audio.radioWhispers(result.strength, position, world.rooms[1].radio);
   if (result.burst) {
     radioBurstTimer = 0.55;
     audio.radioBurst(position);
@@ -1185,6 +1237,8 @@ function interact(item = target) {
       break;
   }
 }
+// SEMANA 9, diapositivas 3 y 13: activar por distancia, sin mover el objeto.
+// Aquí se encuentra el objeto cercano; interact() ejecuta la regla de su puzle.
 function targetInteraction() {
   target = null;
   if (seated) {
@@ -1267,6 +1321,8 @@ function updateFall(dt) {
     updateCamera(0);
   }
 }
+// SEMANA 6, diapositiva 14: varias teclas pueden mantenerse pulsadas a la vez.
+// El Set guarda W/A/S/D o flechas; normalizar evita correr más en diagonal.
 function movementInput() {
   let side =
       Number(keys.has('KeyD') || keys.has('ArrowRight')) -
@@ -1306,6 +1362,11 @@ function updateStamina(dt) {
         : 'ALIENTO';
 }
 function updateCamera(dt) {
+  lookControls.enabled = mode === 'playing' && !seated;
+  lookControls.pointerSpeed = sensitivity * 1.05;
+  lookControls.minPolarAngle = Math.PI / 2 - (hiddenLocker ? 0.42 : 1.42);
+  lookControls.maxPolarAngle = Math.PI / 2 + (hiddenLocker ? 0.42 : 1.42);
+  lookCamera.rotation.set(pitch, yaw, 0, 'YXZ');
   const fov = hiddenLocker ? 80 : seated ? 35 : 68;
   camera.fov = dt > 0 ? THREE.MathUtils.damp(camera.fov, fov, 5, dt) : fov;
   camera.updateProjectionMatrix();
@@ -1334,6 +1395,7 @@ function updatePlayer(dt) {
     updateCamera(dt);
     return;
   }
+  // SEMANA 9: el enfriamiento evita activar otra vez el acceso inmediatamente.
   portalCooldown = Math.max(0, portalCooldown - dt);
   if (hiddenLocker) {
     updateCamera(dt);
@@ -1351,17 +1413,7 @@ function updatePlayer(dt) {
     playerActor.body.velocity.y,
     playerActor.body.velocity.z
   ).dot(playerActor.up);
-  let side =
-      Number(keys.has('KeyD') || keys.has('ArrowRight')) -
-      Number(keys.has('KeyA') || keys.has('ArrowLeft')),
-    forward =
-      Number(keys.has('KeyW') || keys.has('ArrowUp')) -
-      Number(keys.has('KeyS') || keys.has('ArrowDown'));
-  const length = Math.hypot(side, forward);
-  if (length) {
-    side /= length;
-    forward /= length;
-  }
+  const { side, forward } = movementInput();
   const run = sprinting,
     speed = (run ? 3.55 : 2.0) * dt;
   const dx = (side * Math.cos(yaw) - forward * Math.sin(yaw)) * speed;
@@ -1955,6 +2007,7 @@ function broadcast(time) {
   tv.texture.needsUpdate = true;
 }
 
+// SEMANA 6: eventos del teclado alimentan el movimiento y el salto del jugador.
 document.addEventListener('keydown', (event) => {
   if (event.code === 'Tab') {
     const active =
@@ -2040,12 +2093,18 @@ document.addEventListener('keyup', (e) => keys.delete(e.code));
 document.addEventListener('mousemove', (e) => {
   if (mode !== 'playing' || seated) return;
   if (document.pointerLockElement === renderer.domElement || dragging) {
-    yaw -= e.movementX * 0.0021 * sensitivity;
-    pitch = THREE.MathUtils.clamp(
-      pitch - e.movementY * 0.0021 * sensitivity,
-      hiddenLocker ? -0.42 : -1.42,
-      hiddenLocker ? 0.42 : 1.42
-    );
+    if (lookControls.isLocked) {
+      yaw = lookCamera.rotation.y;
+      pitch = lookCamera.rotation.x;
+    } else {
+      // Arrastre de respaldo cuando el navegador no concede bloqueo de puntero.
+      yaw -= e.movementX * 0.0021 * sensitivity;
+      pitch = THREE.MathUtils.clamp(
+        pitch - e.movementY * 0.0021 * sensitivity,
+        hiddenLocker ? -0.42 : -1.42,
+        hiddenLocker ? 0.42 : 1.42
+      );
+    }
     if (hiddenLocker)
       yaw =
         hiddenLocker.viewYaw +
@@ -2055,6 +2114,7 @@ document.addEventListener('mousemove', (e) => {
           -0.6,
           0.6
         );
+    lookCamera.rotation.set(pitch, yaw, 0, 'YXZ');
   }
 });
 renderer.domElement.addEventListener('mousedown', () => {
@@ -2161,68 +2221,73 @@ try {
     $('vhs').style.opacity = comfort ? '.04' : '.16';
   }
 } catch {}
+// SEMANAS 2 y 5: conservar la proporción de la cámara al cambiar la ventana.
 window.addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
 
-async function prepareRemainingRooms(preparation) {
-  try {
-    // El siguiente cuarto tiene prioridad; el final se prepara de último.
-    const pending = world.rooms.slice(1);
-    let videoPrepared = false;
-    while (pending.length) {
-      pending.sort((a, b) => Math.abs(a.id - state.room) - Math.abs(b.id - state.room));
-      const room = pending.shift();
-      const roots = [
-        room.group,
-        ...world.connectors
-          .filter((c) => c.link.a === room.id || c.link.b === room.id)
-          .map((c) => c.group)
-      ];
-      try {
-        await preparation.prepare(roots, { background: true });
-      } catch (error) {
-        // Un fallo de preparación anticipada no vuelve a bloquear una partida iniciada.
-        console.warn(`Preparación del cuarto ${room.id}:`, error);
-      }
-      roomRendering.preparedRooms.add(room.id);
-      if (room.id === 2) await surveillance.prepare(renderer, preparation.canPrepare);
-      if (!videoPrepared) {
-        const videoMaterial = world.rooms[0].tv.screen.clone();
-        videoMaterial.map = broadcastTexture;
-        const screens = endingSequence.screen.slots.map(({ mesh, slot }) => {
-          const copy = mesh.clone(false);
-          copy.material = mesh.material.slice();
-          copy.material[slot] = videoMaterial;
-          return copy;
-        });
-        try {
-          await preparation.prepare(screens, { background: true });
-        } catch (error) {
-          console.warn('Preparación del vídeo:', error);
-        }
-        videoPrepared = true;
-      }
-    }
-    await preparation.prepare([world.creature, world.watcher], { background: true });
-    await endingSequence.prewarm(preparation);
-  } catch (error) {
-    console.warn('Preparación en segundo plano:', error);
-  } finally {
-    roomRendering.exteriorPrepared = true;
-    preparation.dispose();
-  }
+// Plano 2D desplegado: la casa rota en 3D, pero sus cuartos se leen en una hoja.
+const floorPlan = createFloorPlan();
+const mapPoint = new THREE.Vector3(),
+  mapDot = new THREE.Vector3();
+const mapMarker = $('map-player');
+let mapInverses = [],
+  nextMapUpdate = 0;
+function buildMap() {
+  $('map-rooms').innerHTML = floorPlan.rooms
+    .map((r) => `<rect x="${r.left}" y="${r.top}" width="${r.width}" height="${r.height}"/>`)
+    .join('');
+  $('map-labels').innerHTML = floorPlan.rooms
+    .map(
+      (r, i) => `<text x="${r.left + 5}" y="${r.top + 12}">${String(i + 1).padStart(2, '0')}</text>`
+    )
+    .join('');
+  $('map-links').innerHTML = floorPlan.tunnels
+    .map((t) => `<path d="${t.points.map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join('')}"/>`)
+    .join('');
 }
+function updateMap(now) {
+  if (now < nextMapUpdate || !mapInverses.length) return;
+  nextMapUpdate = now + 100;
+  const id = transition?.field ?? state.room;
+  mapPoint.copy(camera.position).applyMatrix4(mapInverses[id]);
+  floorPlanRoomPoint(floorPlan, id, mapPoint.x, mapPoint.z, mapDot);
+  if (transition) {
+    // Progreso físico dentro del túnel, independiente del cambio de cuarto/gravedad.
+    mapPoint.copy(transition.center).applyMatrix4(mapInverses[transition.link.a]);
+    const t = (EYE_HEIGHT / 2 - mapPoint.y) / (transition.link.gap + EYE_HEIGHT / 2 + 0.5);
+    floorPlanTunnelPoint(floorPlan, transition.link.id, t, mapDot);
+    mapPoint.copy(camera.position).applyMatrix4(mapInverses[id]);
+  }
+  mapMarker.setAttribute('cx', mapDot.x.toFixed(1));
+  mapMarker.setAttribute('cy', mapDot.y.toFixed(1));
+  // El usuario retiró el texto de coordenadas; el punto sigue actualizándose.
+}
+buildMap();
+const tapeAudioPosition = new THREE.Vector3();
+const bookUpdate = {
+  state: null,
+  player,
+  hidden: false,
+  onThrow(position) {
+    audio.throwBooks(position);
+    subtitle('Los libros salen despedidos. Algo golpea desde dentro de la pared.', 4);
+    persist();
+  },
+  onLanding: (position) => audio.bookLanding(position)
+};
 
 let last = performance.now(),
   frameTime = 0,
   nextShadowUpdate = 0,
-  lastShadowRoom = -1;
-// 5. Cada fotograma: entrada, física Cannon, sincronización, efectos y render.
-function frame(now) {
-  requestAnimationFrame(frame);
+  lastShadowRoom = -1,
+  pendingRatio = null;
+// SEMANAS 1, 4 y 5: el bucle actualiza y vuelve a dibujar cada fotograma.
+// Cannon calcula los cuerpos; después Three.js dibuja sus posiciones actualizadas.
+function animate(now) {
+  requestAnimationFrame(animate);
   const rawDt = (now - last) / 1000,
     dt = Math.min(rawDt, 0.05);
   last = now;
@@ -2245,8 +2310,13 @@ function frame(now) {
     if (!endingSequence.render()) renderer.render(scene, camera);
     return;
   }
-  const ratio = renderBudget.sample(rawDt * 1000);
-  if (ratio !== null) renderer.setPixelRatio(ratio);
+  const ratio = transition ? null : renderBudget.sample(rawDt * 1000);
+  if (ratio !== null) pendingRatio = ratio;
+  // Redimensionar el framebuffer fuera del túnel y cuando no se está caminando.
+  if (pendingRatio !== null && !transition && roomTime > 2 && keys.size === 0) {
+    renderer.setPixelRatio(pendingRatio);
+    pendingRatio = null;
+  }
   if (mode === 'playing') {
     updateStamina(dt);
     world.entryDoor.update(dt);
@@ -2256,6 +2326,7 @@ function frame(now) {
         collisionTree.teleport(playerActor, world.worldPoint(state.room, player), state.room);
       collisionTree.enable(playerActor, physical);
     }
+    // SEMANA 5: avanzar la simulación física antes de sincronizar los modelos.
     collisionTree?.step(dt);
     for (const prop of radioDebris) collisionTree.syncProp(prop);
     const hadFlash = flash.remaining > 0;
@@ -2275,17 +2346,10 @@ function frame(now) {
       if (!transition) targetInteraction();
     }
     updateHorror(dt);
-    world.bookBurst.update(dt, {
-      state,
-      player,
-      hidden: !!hiddenLocker || !!transition,
-      onThrow: (position) => {
-        audio.throwBooks(position);
-        subtitle('Los libros salen despedidos. Algo golpea desde dentro de la pared.', 4);
-        persist();
-      },
-      onLanding: (position) => audio.bookLanding(position)
-    });
+    bookUpdate.state = state;
+    bookUpdate.hidden = !!hiddenLocker || !!transition;
+    world.bookBurst.update(dt, bookUpdate);
+    updateMap(now);
     if (seated) {
       tvWatch += dt;
       if (
@@ -2333,7 +2397,7 @@ function frame(now) {
     rewinder.update(dt, held);
     const winding = rewinder.progress < 1 && (rewinder.speed > 0.02 || rewindDragging);
     document.querySelector('.rewind-machine').classList.toggle('winding', winding);
-    audio.tapeRewind(winding, world.worldPoint(4, new THREE.Vector3(-1.5, 1.1, -2.65)));
+    audio.tapeRewind(winding, tapeAudioPosition);
     updateRewindUI();
     finishRewind();
   } else if (mode === 'dialog' && !$('radio-screen').classList.contains('hidden')) {
@@ -2380,9 +2444,10 @@ function frame(now) {
   $('blindness').style.opacity = String(Math.min(1, blindness));
   scene.fog.density = 0.022 + blindness * (comfort ? 0.06 : 0.18);
   scene.fog.color.copy(normalFogColor).lerp(blackFogColor, blindness);
+  if (mode === 'playing') lookCamera.rotation.set(pitch, yaw, 0, 'YXZ');
   renderer.render(scene, camera);
 }
-requestAnimationFrame(frame);
+requestAnimationFrame(animate);
 try {
   // 6. Una sola carga inicial; los cuartos reutilizan lo que ya está en memoria.
   $('loading-detail').textContent = 'PREPARANDO LA LUZ DEL ENTORNO';
@@ -2405,6 +2470,9 @@ try {
   // Evita un rechazo sin manejar mientras se preparan los modelos en la GPU.
   mediaReady.catch(() => {});
   world = createWorld(scene);
+  mapInverses = world.rooms.map((room) => room.group.matrixWorld.clone().invert());
+  tapeAudioPosition.set(-1.5, 1.1, -2.65);
+  world.rooms[4].group.localToWorld(tapeAudioPosition);
   applyPuzzle(world, state.puzzle);
   roomRendering = new RoomRendering(world, scene);
   surveillance = new Surveillance(world, scene.environment, cctvTarget);
@@ -2427,18 +2495,64 @@ try {
   const preparation = new RenderPreparation(
     renderer,
     scene,
-    () => mode !== 'cinematic' && mode !== 'ending' && !transition
+    () => ['title', 'letter', 'paused', 'settings'].includes(mode) && !transition
   );
-  $('loading-detail').textContent = 'PREPARANDO ILUMINACIÓN DE LA SALA';
-  await preparation.prepare([world.rooms[0].group], {
-    onProgress: (progress) => {
-      const percent = 65 + Math.round(progress * 35);
-      $('loading-detail').textContent = 'PREPARANDO ILUMINACIÓN DE LA SALA';
-      $('loading-percent').textContent = percent + '%';
-      $('loading-bar').style.width = percent + '%';
-    }
+  await preparation.prepareTextures([scene], (loaded, total) => {
+    const percent = 65 + Math.round((15 * loaded) / Math.max(1, total));
+    $('loading-detail').textContent = `PREPARANDO TEXTURAS / ${loaded} DE ${total}`;
+    $('loading-percent').textContent = percent + '%';
+    $('loading-bar').style.width = percent + '%';
   });
-  // Preparar también el primer mapa de sombra antes de habilitar Comenzar.
+  const videoMaterial = world.rooms[0].tv.screen.clone();
+  videoMaterial.map = broadcastTexture;
+  const videoScreens = endingSequence.screen.slots.map(({ mesh, slot }) => {
+    const copy = mesh.clone(false);
+    copy.material = mesh.material.slice();
+    copy.material[slot] = videoMaterial;
+    return copy;
+  });
+  // Toda la geometría/materiales de los cinco cuartos y cuatro túneles se
+  // prepara aquí. Cruzar solo cambia transformaciones, visibilidad e intensidad.
+  await preparation.prepare(
+    [
+      world.architecture,
+      ...world.rooms.map((room) => room.group),
+      ...world.connectors.map((c) => c.group),
+      world.creature,
+      world.watcher,
+      ...videoScreens
+    ],
+    {
+      onProgress: (progress) => {
+        const percent = 80 + Math.round(progress * 18);
+        $('loading-detail').textContent = 'PREPARANDO HABITACIONES Y TÚNELES';
+        $('loading-percent').textContent = percent + '%';
+        $('loading-bar').style.width = percent + '%';
+      }
+    }
+  );
+  $('loading-detail').textContent = 'PREPARANDO CÁMARA DEL TALLER';
+  await surveillance.prepare(renderer, () => true);
+  roomRendering.preparedRooms = new Set(world.rooms.map((room) => room.id));
+  // La pasada de sombras usa otro programa: prepararla también para cada cuarto
+  // evita compilar el material de profundidad al cruzar por primera vez.
+  world.creature.visible = world.watcher.visible = true;
+  for (const room of world.rooms) {
+    $('loading-detail').textContent =
+      `PREPARANDO SOMBRAS / ${room.id + 1} DE ${world.rooms.length}`;
+    roomRendering.update(room.id);
+    camera.position.copy(world.worldPoint(room.id, new THREE.Vector3(0, 1.65, 3)));
+    camera.up.set(0, 1, 0).applyQuaternion(room.group.quaternion);
+    camera.lookAt(world.worldPoint(room.id, new THREE.Vector3(0, 1.65, -2)));
+    preparation.draw(scene, camera, true);
+    await new Promise(requestAnimationFrame);
+  }
+  world.creature.visible = world.watcher.visible = false;
+  $('loading-detail').textContent = 'PREPARANDO TELEVISOR Y EXTERIOR';
+  await endingSequence.prewarm(preparation, false);
+  roomRendering.exteriorPrepared = true;
+  roomRendering.update(0);
+  camera.up.set(0, 1, 0);
   camera.position.set(-3.35, 1.65, 4.4);
   camera.lookAt(-2.25, 1.5, -3.2);
   preparation.draw(scene, camera, true);
@@ -2454,8 +2568,8 @@ try {
   $('continue').hidden = false;
   $('continue').disabled = !saved();
   refreshHUD();
-  // No esperar estos cuartos para habilitar Comenzar ni detener el bucle del juego.
-  void prepareRemainingRooms(preparation);
+  // No queda ninguna cola de preparación gráfica ejecutándose durante la partida.
+  preparation.dispose();
 } catch (error) {
   console.error(error);
   const message =

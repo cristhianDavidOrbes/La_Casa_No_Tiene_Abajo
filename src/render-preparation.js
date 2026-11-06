@@ -68,6 +68,28 @@ export class RenderPreparation {
     });
   }
 
+  // Las transferencias de texturas y sus mipmaps no pueden trocearse con idle.
+  // Hacerlas antes de jugar evita subidas pesadas al aparecer el monstruo o un cuarto.
+  async prepareTextures(roots, onProgress = () => {}) {
+    const pending = new Set();
+    for (const root of roots)
+      root.traverse((o) => {
+        if (!o.material) return;
+        for (const material of Array.isArray(o.material) ? o.material : [o.material])
+          for (const slot of textureSlots) {
+            const texture = material[slot];
+            if (texture?.image && !this.textures.has(texture)) pending.add(texture);
+          }
+      });
+    let done = 0;
+    for (const texture of pending) {
+      await this.pause(false);
+      this.renderer.initTexture(texture);
+      this.textures.add(texture);
+      onProgress(++done, pending.size);
+    }
+  }
+
   async prepare(roots, { background = false, onProgress = () => {} } = {}) {
     const objects = [];
     const keys = new Set();

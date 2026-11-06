@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { clone as cloneSkeleton } from 'three/addons/utils/SkeletonUtils.js';
 import { solveLimb } from './creature-motion.js';
-import { setExteriorVisible } from './room-rendering.js';
+import { setExteriorVisible, updateArchitectureVisibility } from './room-rendering.js';
 import { createRoad } from './road.js';
 
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
@@ -316,9 +316,9 @@ export class EndingSequence {
     this.tv.screen = enabled ? this.crt : this.screen.slots[0].material;
   }
 
-  async prewarm(preparation) {
+  async prewarm(preparation, background = false) {
     // El final también se prepara en copias: nunca mover la cámara, el actor o el TV reales.
-    await preparation.prepare([this.exterior], { background: true });
+    await preparation.prepare([this.exterior, this.hero], { background });
     const target = this.renderer.getRenderTarget();
     try {
       this.renderer.initRenderTarget(this.feedTarget);
@@ -333,7 +333,7 @@ export class EndingSequence {
       copy.material[slot] = this.crt;
       return copy;
     });
-    await preparation.prepare(screens, { background: true });
+    await preparation.prepare(screens, { background });
   }
 
   start() {
@@ -385,6 +385,7 @@ export class EndingSequence {
     this.world.rooms.forEach((room) => {
       room.group.visible = room.id === 0;
     });
+    updateArchitectureVisibility(this.world);
     this.world.connectors.forEach((c) => {
       c.group.visible = false;
     });
@@ -622,6 +623,7 @@ export class EndingSequence {
       this.world.rooms.forEach((room, i) => {
         room.group.visible = saved.roomVisibility[i];
       });
+      updateArchitectureVisibility(this.world);
       this.world.connectors.forEach((c, i) => {
         c.group.visible = saved.connectorVisibility[i];
       });

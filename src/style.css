@@ -1998,3 +1998,75 @@ blockquote {
     animation: none !important;
   }
 }
+
+/* Plano doméstico en 2D. El HUD no intercepta ratón ni teclado. */
+#floor-map {
+  position: absolute;
+  top: 112px;
+  right: 26px;
+  width: 224px;
+  margin: 0;
+  padding: 10px 9px 8px;
+  background: #080d0be8;
+  border: 1px solid #8d8064;
+  pointer-events: none;
+}
+#floor-map svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.map-rooms {
+  fill: #171d17;
+  stroke: #c0b396;
+  stroke-width: 1.4;
+}
+.map-links {
+  fill: none;
+  stroke: #a69c81;
+  stroke-width: 7;
+}
+.map-labels {
+  font:
+    10px 'Courier New',
+    monospace;
+  fill: #d0c3a7;
+}
+#map-player {
+  fill: #ffe5ad;
+  stroke: #11170e;
+  stroke-width: 2;
+}
+#floor-map figcaption {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 7px;
+  font:
+    9px 'Courier New',
+    monospace;
+  color: #d5c6a5;
+  letter-spacing: 0.08em;
+}
+#coordinates {
+  margin-top: 5px;
+  font:
+    11px 'Courier New',
+    monospace;
+  letter-spacing: 0.03em;
+  color: #d2c7ab;
+}
+@media (max-width: 640px) {
+  #floor-map {
+    width: 150px;
+    top: 102px;
+    right: 14px;
+    padding: 7px;
+  }
+  #floor-map figcaption {
+    font-size: 7px;
+    letter-spacing: 0;
+  }
+  #coordinates {
+    font-size: 9px;
+  }
+}

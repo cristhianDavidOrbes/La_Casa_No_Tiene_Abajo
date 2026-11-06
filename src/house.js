@@ -1,4 +1,6 @@
-// Semanas 2, 4, 7 y 8: modelos compartidos, grupos, materiales PBR, focos y partículas.
+// Temas de clase usados en la casa: loadAssets (GLTF y PBR), instance (Group y TRS),
+// light/lamp (PointLight y SpotLight), dust/updateWorld (BufferGeometry y animación).
+// La distribución de los cuartos y el montaje de los puzles son reglas del juego.
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
@@ -9,7 +11,6 @@ import { LEVELS, LINKS, connectorShape, roomPortals, portalOpen } from './level.
 import { insideHole } from './physics.js';
 import { fitCRT } from './asset-fit.js';
 import { chairPose } from './orientation-puzzle.js';
-import { shellBoxes, connectorBoxes } from './architecture.js';
 import { configureWatcher } from './watcher-head.js';
 import { ThreatLightState } from './threat-light.js';
 import { bindRoomFill } from './room-lighting.js';
@@ -47,6 +48,8 @@ const house = [
   'Prop_Curtains_Double'
 ];
 let wood, plaster, carpet;
+// SEMANA 7, diapositivas 13–16: GLTFLoader lee modelos de public/models.
+// Se cargan una vez; al cambiar de cuarto se reutilizan, no se descargan de nuevo.
 export async function loadAssets(progress) {
   const list = [
     ...furniture.map((n) => [n, 'furniture/' + n.toLowerCase() + '.glb']),
@@ -54,15 +57,17 @@ export async function loadAssets(progress) {
     ...haven.map((n) => ['h-' + n, 'haven/' + n.toLowerCase() + '/' + n.toLowerCase() + '.gltf']),
     ['fuse', 'props/ceramic-fuse.glb'],
     ['changingLocker', 'props/changing-locker.glb'],
-    ['book-stendec', 'books/book-stendec.glb']
+    ['book-stendec', 'books/book-stendec.glb'],
+    ['scenario', 'escenario.glb']
   ];
   let done = 0;
-  const total = list.length + 14 + house.length;
+  const total = list.length + 8 + house.length;
   await loadPool(list, async ([name, file]) => {
     models[name] = (await loadWithRetry('/models/' + file, (url) => loader.loadAsync(url))).scene;
     progress(++done, total);
   });
-  // Semanas 7 y 8: los módulos ya están exportados; no se convierten al jugar.
+  // SEMANA 8, diapositiva 21: GLB exportados con recursos empaquetados,
+  // transformaciones aplicadas y eje +Y arriba; el navegador solo carga el resultado.
   await loadPool(house, async (name) => {
     models['house-' + name] = (
       await loadWithRetry('/models/house/' + name.toLowerCase() + '.glb', (url) =>
@@ -108,29 +113,33 @@ export async function loadAssets(progress) {
         side: THREE.DoubleSide
       });
   });
-  await loadPool(
-    [
-      'wood-diff',
-      'wood-nor_gl',
-      'wood-Rough',
-      'plaster-Diffuse',
-      'plaster-nor_gl',
-      'plaster-rough',
-      'rug-Diffuse',
-      'rug-nor_gl',
-      'rug-Rough'
-    ],
-    async (name) => {
-      const t = await loadWithRetry('/textures/materials/' + name.toLowerCase() + '.jpg', (url) =>
-        new THREE.TextureLoader().loadAsync(url)
-      );
-      t.wrapS = t.wrapT = THREE.RepeatWrapping;
-      t.anisotropy = 8;
-      if (/diff/i.test(name)) t.colorSpace = THREE.SRGBColorSpace;
-      textures[name] = t;
-      progress(++done, total);
-    }
-  );
+  // Semana 8/10: las seis texturas estructurales ya vienen empaquetadas en el GLB.
+  const surfaceMaterials = {};
+  models.scenario.traverse((o) => {
+    if (o.isMesh) surfaceMaterials[o.material.name] = o.material;
+  });
+  const floorMaterial = surfaceMaterials.room_0_wood,
+    wallMaterial = surfaceMaterials.room_0_wall;
+  Object.assign(textures, {
+    'wood-diff': floorMaterial.map,
+    'wood-nor_gl': floorMaterial.normalMap,
+    'wood-Rough': floorMaterial.roughnessMap,
+    'plaster-Diffuse': wallMaterial.map,
+    'plaster-nor_gl': wallMaterial.normalMap,
+    'plaster-rough': wallMaterial.roughnessMap
+  });
+  await loadPool(['rug-Diffuse', 'rug-nor_gl', 'rug-Rough'], async (name) => {
+    const t = await loadWithRetry('/textures/materials/' + name.toLowerCase() + '.jpg', (url) =>
+      new THREE.TextureLoader().loadAsync(url)
+    );
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.anisotropy = 8;
+    if (/diff/i.test(name)) t.colorSpace = THREE.SRGBColorSpace;
+    textures[name] = t;
+    progress(++done, total);
+  });
+  // SEMANA 2, diapositivas 13–15: PBR combina textura y respuesta a la luz.
+  // map aporta color, normalMap relieve aparente y roughnessMap rugosidad.
   wood = new THREE.MeshStandardMaterial({
     map: textures['wood-diff'],
     normalMap: textures['wood-nor_gl'],
@@ -208,6 +217,8 @@ function instance(name, { height, size, mat, raw = false } = {}) {
   };
   name = replacements[name] || name;
   if (name.startsWith('h-')) raw = true;
+  // SEMANA 2, diapositivas 16–19: Group agrupa el modelo; position/scale
+  // ajustan tamaño y origen. Rotar el grupo también rota sus objetos hijos.
   const root = new THREE.Group(),
     m = models[name].clone(true);
   root.add(m);
@@ -371,6 +382,7 @@ function note(room, id) {
     mesh
   });
 }
+// SEMANA 4, diapositiva 9: PointLight ilumina en todas las direcciones.
 function light(room, pos, color, power, range = 10) {
   const l = new THREE.PointLight(color, power, range, 2);
   l.position.set(...pos);
@@ -390,6 +402,7 @@ function lamp(room) {
   });
   const color = room.id === 0 ? '#ffe0a3' : room.id === 3 ? '#b6c9c4' : '#e0c6a6';
   const bulb = light(room, [0, room.h - 0.58, 0], color, room.id === 0 ? 42 : 30, 15);
+  // SpotLight dirige un cono; shadow.mapSize limita el coste de su sombra.
   const shadow = new THREE.SpotLight(color, room.id === 0 ? 95 : 85, 16, 1.25, 0.8, 2);
   shadow.position.set(0, room.h - 0.62, 0);
   shadow.target.position.set(0, 0, 0);
@@ -412,10 +425,6 @@ function pipe(room, start, end, r = 0.05) {
   return m;
 }
 function shell(room) {
-  const wallMat = plaster.clone();
-  wallMat.color.set(['#c9c0a6', '#9da997', '#afb0a1', '#c4b59a', '#a4b2aa'][room.id]);
-  for (const box of shellBoxes(room))
-    structure(room, box.name, box.size, box.pos, box.material === 'wood' ? wood : wallMat);
   for (const portal of room.portals.filter((p) => p.kind === 'floor')) {
     portal.cover = structure(
       room,
@@ -426,30 +435,6 @@ function shell(room) {
     );
     portal.openAmount = 0;
     light(room, [portal.x, -0.2, portal.z], '#acc5b2', 7, 4);
-  }
-  for (const z of [-room.d / 2 + 0.045, room.d / 2 - 0.045]) {
-    const spans =
-      room.id === 0 && z > 0
-        ? [
-            [-5, ENTRY_DOOR.hingeX],
-            [ENTRY_DOOR.hingeX + ENTRY_DOOR.width, 5]
-          ]
-        : [[-5, 5]];
-    for (const [a, b] of spans)
-      structure(
-        room,
-        'house-Structure_Wall_Straight_Base',
-        [b - a, 0.18, 0.12],
-        [(a + b) / 2, 0.09, z],
-        wood
-      );
-    structure(
-      room,
-      'house-Structure_Wall_Straight_Top',
-      [10, 0.16, 0.12],
-      [0, room.h - 0.08, z],
-      plaster
-    );
   }
   lamp(room);
   if ([1, 2, 4].includes(room.id))
@@ -465,15 +450,14 @@ function buildConnectors(scene) {
     scene.add(group);
     group.updateMatrixWorld(true);
     const room = { group, lights: [] },
-      s = connectorShape(link),
-      mat = plaster.clone();
-    mat.color.set('#78867c');
-    for (const box of connectorBoxes(link)) structure(room, box.name, box.size, box.pos, mat);
+      s = connectorShape(link);
     light(room, [s.a, -0.8, s.z], '#aabbb1', 18, 10);
     light(room, [s.a, -link.gap + 0.5, s.z], '#b5c6b3', 18, 10);
     return { group, link, shape: s, lights: room.lights };
   });
 }
+// SEMANA 4, diapositivas 12–18: un Points dibuja todo el polvo con un búfer.
+// Cada partícula ocupa tres números: X, Y, Z. No se crea un Mesh por punto.
 function dust(room) {
   const n = 320,
     a = new Float32Array(n * 3);
@@ -550,6 +534,7 @@ function addLocker(room, x, z, rot) {
     roughness: 0.8
   });
   const panel = (parent, size, pos, mat = steel) => {
+    // SEMANAS 1–2: Mesh = geometría (forma) + material (apariencia).
     const mesh = new THREE.Mesh(new THREE.BoxGeometry(...size), mat);
     mesh.position.set(...pos);
     mesh.castShadow = mesh.receiveShadow = true;
@@ -845,6 +830,27 @@ export function createWorld(scene) {
     room.threatLights = new ThreatLightState(room.id);
     bindRoomFill(room.group, room.indirectFill);
   }
+  // Un único escenario modelado y unido en Blender. Las primitivas conservan
+  // materiales por cuarto para oscurecerlos sin separar ni reconstruir la malla.
+  const architecture = models.scenario;
+  architecture.name = 'escenario_blender';
+  const wallColors = ['#c9c0a6', '#9da997', '#afb0a1', '#c4b59a', '#a4b2aa'];
+  architecture.traverse((mesh) => {
+    if (!mesh.isMesh) return;
+    const name = mesh.material.name;
+    const [, owner, kind] = /^room_(\d+)_(\w+)$/.exec(name);
+    mesh.material = (kind === 'wood' ? wood : plaster).clone();
+    mesh.material.name = name;
+    if (kind !== 'wood')
+      mesh.material.color.set(kind === 'connector' ? '#78867c' : wallColors[owner]);
+    mesh.userData.room = Number(owner);
+    mesh.userData.connector = kind === 'connector';
+    mesh.castShadow = mesh.receiveShadow = true;
+    mesh.updateMatrix();
+    mesh.matrixAutoUpdate = false;
+  });
+  bindRoomFill(architecture, (material) => rooms[Number(material.name.split('_')[1])].indirectFill);
+  scene.add(architecture);
   creature.userData.indirectFill = { value: 1 };
   bindRoomFill(creature, creature.userData.indirectFill);
   // Mesh transforms are static; movable covers and switches use their parent groups.
@@ -864,6 +870,7 @@ export function createWorld(scene) {
     });
   return {
     scene,
+    architecture,
     rooms,
     connectors,
     entryDoor,
@@ -919,6 +926,7 @@ export function updateWorld(world, state, dt, time, comfort, enemy = null) {
       p.cover.position.y = -0.065 - Math.min(1, p.openAmount * 5) * 0.2;
       p.cover.position.z = p.z + Math.max(0, (p.openAmount - 0.2) / 0.8) * 2.7;
     }
+    // SEMANA 4: modificar el búfer y marcar needsUpdate envía las posiciones a la GPU.
     const arr = room.dust.geometry.attributes.position;
     for (let i = 0; i < arr.count; i++) {
       arr.array[i * 3 + 1] -= (0.06 + (i % 7) * 0.012) * dt;

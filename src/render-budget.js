@@ -1,28 +1,27 @@
-// Adjust only supersampling, never geometry, textures or skeletal animation quality.
+// Resolución adaptativa: conservar geometría y texturas, ajustar píxeles al coste de GPU.
 export class RenderBudget {
-  constructor(max = 1.5) {
-    this.max = max;
-    // Empezar a resolución nativa; subir solo si las mediciones muestran margen.
-    this.ratio = Math.min(1, max);
-    this.min = Math.min(1, max);
-    this.samples = [];
-    this.elapsed = 0;
-    this.cooldown = 3;
+  constructor(max = 1, pixels = 1280 * 720) {
+    this.max = Math.min(max, Math.sqrt((1600 * 900) / Math.max(1, pixels)));
+    this.ratio = Math.min(this.max, Math.sqrt((1280 * 720) / Math.max(1, pixels)));
+    this.min = Math.min(0.55, this.ratio);
+    this.samples = new Float32Array(120);
+    this.count = this.index = this.elapsed = 0;
+    this.cooldown = 1.5;
   }
   sample(ms) {
-    if (ms <= 0 || ms > 100) return null;
+    if (ms <= 0 || ms > 250) return null;
     this.elapsed += ms / 1000;
-    this.samples.push(ms);
-    if (this.samples.length > 240) this.samples.shift();
-    if (this.elapsed < this.cooldown || this.samples.length < 90) return null;
-    const s = [...this.samples].sort((a, b) => a - b),
-      p95 = s[Math.floor(s.length * 0.95)];
-    this.elapsed = 0;
-    this.samples = [];
+    this.samples[this.index] = ms;
+    this.index = (this.index + 1) % this.samples.length;
+    this.count = Math.min(this.count + 1, this.samples.length);
+    if (this.elapsed < this.cooldown || this.count < 45) return null;
+    const sorted = this.samples.slice(0, this.count).sort(),
+      p90 = sorted[Math.floor(this.count * 0.9)];
+    this.elapsed = this.count = this.index = 0;
     const old = this.ratio;
-    if (p95 > 17.4) this.ratio = Math.max(this.min, this.ratio - 0.15);
-    else if (p95 < 11.5) this.ratio = Math.min(this.max, this.ratio + 0.1);
-    this.cooldown = this.ratio > old ? 12 : 4;
-    return Math.abs(old - this.ratio) > 0.001 ? this.ratio : null;
+    if (p90 > 17.8) this.ratio = Math.max(this.min, this.ratio * 0.82);
+    else if (p90 < 11.5) this.ratio = Math.min(this.max, this.ratio + 0.05);
+    this.cooldown = this.ratio > old ? 12 : 2;
+    return Math.abs(this.ratio - old) > 0.001 ? this.ratio : null;
   }
 }

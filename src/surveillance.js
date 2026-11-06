@@ -34,6 +34,17 @@ export class Surveillance {
       };
       o.material = Array.isArray(o.material) ? o.material.map(separate) : separate(o.material);
     });
+    this.architecture = world.architecture.clone(true);
+    this.architecture.traverse((mesh) => {
+      if (!mesh.isMesh) return;
+      mesh.visible = true;
+      mesh.castShadow = mesh.receiveShadow = false;
+      const material = mesh.material.clone();
+      material.onBeforeCompile = mesh.material.onBeforeCompile;
+      material.customProgramCacheKey = mesh.material.customProgramCacheKey;
+      mesh.material = material;
+    });
+    this.scene.add(this.architecture);
     this.scene.add(this.room, new THREE.AmbientLight('#a4b6ac', 0.35));
     const light = new THREE.PointLight('#bacab7', 45, 18, 2);
     light.position.copy(world.worldPoint(2, new THREE.Vector3(0, 3.3, 0)));
@@ -46,7 +57,7 @@ export class Surveillance {
   async prepare(renderer, canPrepare) {
     const preparation = new RenderPreparation(renderer, this.scene, canPrepare, this.target);
     try {
-      await preparation.prepare([this.room], { background: true });
+      await preparation.prepare([this.room, this.architecture]);
       this.ready = true;
     } finally {
       preparation.dispose();

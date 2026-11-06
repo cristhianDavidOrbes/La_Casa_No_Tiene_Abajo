@@ -10,6 +10,17 @@ export function setExteriorVisible(world, visible) {
   for (const { light, power } of exterior.lights) light.intensity = visible ? power : 0;
 }
 
+// El archivo de Blender permanece unido; solo se ocultan sus grupos de material.
+export function updateArchitectureVisibility(world) {
+  world.architecture.traverse((mesh) => {
+    if (!mesh.isMesh) return;
+    const id = mesh.userData.room;
+    mesh.visible =
+      world.rooms[id].group.visible &&
+      (!mesh.userData.connector || world.rooms[id + 1].group.visible);
+  });
+}
+
 // Geometry is resident from startup. Changing rooms changes uniforms and the
 // visible geometry window, not the shader's light/shadow counts or GPU targets.
 export class RoomRendering {
@@ -63,6 +74,9 @@ export class RoomRendering {
       });
       return meshes;
     });
+    world.architecture.traverse((mesh) => {
+      if (mesh.isMesh) this.casters.push({ mesh, room: mesh.userData.room, large: true });
+    });
   }
   update(activeRoom, transition = null, eye = null) {
     setExteriorVisible(this.world, activeRoom === 0 && this.exteriorPrepared);
@@ -80,6 +94,7 @@ export class RoomRendering {
         visible.has(room.id) &&
         (!this.preparedRooms || this.preparedRooms.has(room.id) || room.id === activeRoom);
     }
+    updateArchitectureVisibility(this.world);
     for (const caster of this.casters) {
       caster.mesh.castShadow = caster.large && caster.room === activeRoom;
     }

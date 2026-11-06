@@ -15,12 +15,13 @@ export function bindRoomFill(root, fill) {
       )
         return source;
       if (materials.has(source)) return materials.get(source);
+      const roomFill = typeof fill === 'function' ? fill(source) : fill;
       const material = source.clone(),
         compile = source.onBeforeCompile,
         cacheKey = source.customProgramCacheKey();
       material.onBeforeCompile = (shader, renderer) => {
         compile.call(material, shader, renderer);
-        shader.uniforms.roomIndirectFill = fill;
+        shader.uniforms.roomIndirectFill = roomFill;
         shader.fragmentShader = 'uniform float roomIndirectFill;\n' + shader.fragmentShader;
         shader.fragmentShader = shader.fragmentShader.replace(
           '#include <lights_fragment_begin>',
