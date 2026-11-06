@@ -1,14 +1,16 @@
-// Semanas 5–6: un único mundo físico; cuerpos, fuerzas, contactos y paso fijo.
-import * as C from 'cannon-es';
+// SEMANAS 5–6: Cannon-es calcula física; Three.js representa sus resultados.
+// Recorrido: constructor (mundo/materiales), box (cuerpo estático), jump (impulso),
+// createProp (libro y choque), step (paso fijo), syncProp (física -> modelo 3D).
+import * as CANNON from 'cannon-es';
 import { Vector3, Quaternion, Box3 } from 'three';
 import { LINKS, roomQuaternion, worldPosition, localPosition } from './level.js';
 import { shellBoxes, connectorBoxes } from './architecture.js';
 import { ENTRY_DOOR } from './entry-door.js';
 const Y = new Vector3(0, 1, 0),
-  STEP = 1 / 120;
+  STEP = 1 / 120; // Semana 5: duración fija; no depende de los FPS del dibujo.
 export const PHYSICS_GROUP = { scene: 1, player: 2, monster: 4, book: 8 };
-const cv = (v) => new C.Vec3(v.x, v.y, v.z),
-  cq = (q) => new C.Quaternion(q.x, q.y, q.z, q.w);
+const cv = (v) => new CANNON.Vec3(v.x, v.y, v.z),
+  cq = (q) => new CANNON.Quaternion(q.x, q.y, q.z, q.w);
 const tv = (v) => new Vector3(v.x, v.y, v.z);
 // Bounds in the model's own axes, not an inverse-transformed world AABB.
 // Rotating a world AABB back inflates it and makes props collide in empty space.
@@ -46,16 +48,20 @@ export class CannonPhysics {
     this.statics = [];
     this.doors = [];
     this.pickups = [];
-    this.world = new C.World({ gravity: new C.Vec3(0, 0, 0), allowSleep: true });
-    this.world.broadphase = new C.SAPBroadphase(this.world);
+    // SEMANA 5, diapositivas 5–9: mundo físico, materiales y contactos.
+    // Adaptación del juego: gravedad global 0; step() aplica la de cada habitación.
+    this.world = new CANNON.World({ gravity: new CANNON.Vec3(0, 0, 0), allowSleep: true });
+    // SEMANA 6: SAP descarta pares de cuerpos lejanos; dormir ahorra cálculos.
+    this.world.broadphase = new CANNON.SAPBroadphase(this.world);
     this.world.solver.iterations = 12;
     this.world.solver.tolerance = 0.00001;
-    this.world.frictionGravity = new C.Vec3(0, -13.8, 0);
-    this.sceneMaterial = new C.Material('house');
-    this.actorMaterial = new C.Material('character');
-    this.bookMaterial = new C.Material('paper-and-cover');
+    this.world.frictionGravity = new CANNON.Vec3(0, -13.8, 0);
+    // Friction limita el deslizamiento; restitution controla cuánto rebota.
+    this.sceneMaterial = new CANNON.Material('house');
+    this.actorMaterial = new CANNON.Material('character');
+    this.bookMaterial = new CANNON.Material('paper-and-cover');
     this.world.addContactMaterial(
-      new C.ContactMaterial(this.sceneMaterial, this.actorMaterial, {
+      new CANNON.ContactMaterial(this.sceneMaterial, this.actorMaterial, {
         friction: 0,
         restitution: 0,
         contactEquationStiffness: 1e8,
@@ -63,30 +69,32 @@ export class CannonPhysics {
       })
     );
     this.world.addContactMaterial(
-      new C.ContactMaterial(this.sceneMaterial, this.bookMaterial, {
+      new CANNON.ContactMaterial(this.sceneMaterial, this.bookMaterial, {
         friction: 0.48,
         restitution: 0.2
       })
     );
     this.world.addContactMaterial(
-      new C.ContactMaterial(this.bookMaterial, this.bookMaterial, {
+      new CANNON.ContactMaterial(this.bookMaterial, this.bookMaterial, {
         friction: 0.5,
         restitution: 0.12
       })
     );
     this.world.addContactMaterial(
-      new C.ContactMaterial(this.actorMaterial, this.bookMaterial, {
+      new CANNON.ContactMaterial(this.actorMaterial, this.bookMaterial, {
         friction: 0.15,
         restitution: 0
       })
     );
     this.rebuild(state);
   }
+  // SEMANA 5: mass: 0 crea paredes/suelos inmóviles con una forma Box.
+  // Body pertenece a Cannon; el Mesh que vemos pertenece a Three.js.
   box(size, position, rotation, metadata = {}) {
-    const body = new C.Body({
+    const body = new CANNON.Body({
       mass: 0,
       material: this.sceneMaterial,
-      shape: new C.Box(new C.Vec3(...size.map((n) => Math.max(0.002, n) / 2))),
+      shape: new CANNON.Box(new CANNON.Vec3(...size.map((n) => Math.max(0.002, n) / 2))),
       position: cv(position),
       quaternion: cq(rotation),
       collisionFilterGroup: PHYSICS_GROUP.scene,
@@ -124,7 +132,7 @@ export class CannonPhysics {
           pivot.getWorldQuaternion(new Quaternion()),
           { room: room.id, door: true }
         );
-        leaf.type = C.Body.KINEMATIC;
+        leaf.type = CANNON.Body.KINEMATIC;
         leaf.updateMassProperties();
         this.doors.push({ body: leaf, pivot, center });
         // Keep the threshold/porch supported, but leave the folded archive and
@@ -150,7 +158,7 @@ export class CannonPhysics {
             roomQuaternion(room.id),
             { gate: portal.link, room: room.id }
           );
-          leaf.type = C.Body.KINEMATIC;
+          leaf.type = CANNON.Body.KINEMATIC;
           leaf.updateMassProperties();
           this.doors.push({
             body: leaf,
@@ -238,8 +246,11 @@ export class CannonPhysics {
             [0, 0.45, 0]
           ]
         ])
-          leaf.addShape(new C.Box(new C.Vec3(...size.map((n) => n / 2))), new C.Vec3(...offset));
-        leaf.type = C.Body.KINEMATIC;
+          leaf.addShape(
+            new CANNON.Box(new CANNON.Vec3(...size.map((n) => n / 2))),
+            new CANNON.Vec3(...offset)
+          );
+        leaf.type = CANNON.Body.KINEMATIC;
         leaf.updateMassProperties();
         this.doors.push({
           body: leaf,
@@ -269,10 +280,11 @@ export class CannonPhysics {
         });
     this.world.broadphase.dirty = true;
   }
+  // SEMANA 6: el personaje tiene un cuerpo con masa, velocidad y amortiguación.
   createCharacter(feet, room, { height = 1.68, radius = 0.24, monster = false } = {}) {
     const frame = roomQuaternion(room),
       up = Y.clone().applyQuaternion(frame),
-      body = new C.Body({
+      body = new CANNON.Body({
         mass: monster ? 95 : 80,
         material: this.actorMaterial,
         fixedRotation: true,
@@ -315,9 +327,9 @@ export class CannonPhysics {
       r = actor.radius,
       length = Math.max(0.02, height - 2 * r);
     while (body.shapes.length) body.removeShape(body.shapes[0]);
-    body.addShape(new C.Cylinder(r, r, length, 12));
-    body.addShape(new C.Sphere(r), new C.Vec3(0, length / 2, 0));
-    body.addShape(new C.Sphere(r), new C.Vec3(0, -length / 2, 0));
+    body.addShape(new CANNON.Cylinder(r, r, length, 12));
+    body.addShape(new CANNON.Sphere(r), new CANNON.Vec3(0, length / 2, 0));
+    body.addShape(new CANNON.Sphere(r), new CANNON.Vec3(0, -length / 2, 0));
     actor.height = height;
     body.position.copy(cv(feet.addScaledVector(actor.up, height / 2)));
     body.updateMassProperties();
@@ -391,14 +403,17 @@ export class CannonPhysics {
     if (!actor?.enabled || !actor.grounded) return false;
     const v = tv(actor.body.velocity),
       vertical = v.dot(actor.up);
-    actor.body.velocity.copy(cv(v.addScaledVector(actor.up, speed - vertical)));
+    // SEMANA 6, diapositiva 14: impulso = masa * cambio de velocidad.
+    // La dirección es el "arriba" local para poder saltar con gravedad rotada.
+    const impulse = actor.up.clone().multiplyScalar(actor.body.mass * (speed - vertical));
+    actor.body.applyImpulse(cv(impulse));
     actor.grounded = false;
     actor.body.wakeUp();
     return true;
   }
   createProp(root, room, { mass = 0.35, material = this.bookMaterial, onImpact = null } = {}) {
     const { size, offset } = modelBounds(root),
-      body = new C.Body({
+      body = new CANNON.Body({
         mass,
         material,
         position: cv(root.getWorldPosition(new Vector3())),
@@ -413,8 +428,8 @@ export class CannonPhysics {
           PHYSICS_GROUP.scene | PHYSICS_GROUP.book | PHYSICS_GROUP.player | PHYSICS_GROUP.monster
       });
     body.addShape(
-      new C.Box(
-        new C.Vec3(
+      new CANNON.Box(
+        new CANNON.Vec3(
           Math.max(0.002, size.x) / 2,
           Math.max(0.002, size.y) / 2,
           Math.max(0.002, size.z) / 2
@@ -423,10 +438,11 @@ export class CannonPhysics {
       cv(offset)
     );
     const prop = { root, body, room, active: false };
-    body.type = C.Body.KINEMATIC;
+    body.type = CANNON.Body.KINEMATIC;
     body.collisionFilterMask = 0;
     body.updateMassProperties();
     if (onImpact)
+      // SEMANA 6, diapositiva 15: el impacto de un libro dispara su sonido.
       body.addEventListener('collide', (event) => {
         if (prop.active && Math.abs(event.contact.getImpactVelocityAlongNormal()) > 1.1)
           onImpact(tv(body.position));
@@ -436,7 +452,7 @@ export class CannonPhysics {
     return prop;
   }
   launchProp(prop, velocity, spin) {
-    prop.body.type = C.Body.DYNAMIC;
+    prop.body.type = CANNON.Body.DYNAMIC;
     prop.body.collisionFilterMask = 15;
     prop.body.updateMassProperties();
     prop.body.velocity.copy(cv(velocity));
@@ -446,7 +462,7 @@ export class CannonPhysics {
   }
   resetProp(prop) {
     prop.active = false;
-    prop.body.type = C.Body.KINEMATIC;
+    prop.body.type = CANNON.Body.KINEMATIC;
     prop.body.collisionFilterMask = 0;
     prop.body.velocity.setZero();
     prop.body.angularVelocity.setZero();
@@ -497,6 +513,8 @@ export class CannonPhysics {
                 : false;
       pickup.body.collisionFilterMask = used ? 0 : -1;
     }
+    // SEMANA 5, diapositiva 6: acumular tiempo y simular intervalos iguales.
+    // Puede haber varios pasos físicos por cada fotograma de Three.js.
     this.accumulator = Math.min(0.05, this.accumulator + Math.max(0, dt));
     while (this.accumulator >= STEP) {
       for (const actor of this.actors) {
@@ -545,7 +563,7 @@ export class CannonPhysics {
         actor.body.force.copy(cv(forceUp.multiplyScalar(-actor.gravity * actor.body.mass)));
       }
       for (const prop of this.props)
-        if (prop.active && prop.body.sleepState !== C.Body.SLEEPING)
+        if (prop.active && prop.body.sleepState !== CANNON.Body.SLEEPING)
           prop.body.force.copy(cv(this.gravityField(prop).multiplyScalar(-13.8 * prop.body.mass)));
       this.world.step(STEP);
       this.accumulator -= STEP;
@@ -569,6 +587,8 @@ export class CannonPhysics {
       }
     }
   }
+  // SEMANA 5, diapositiva 17: copiar posición y cuaternión del Body al modelo.
+  // Se convierten a coordenadas del grupo que contiene el libro.
   syncProp(prop) {
     if (!prop.active) return;
     const p = tv(prop.body.position),
@@ -613,7 +633,7 @@ export class CannonPhysics {
     return nearest ?? false;
   }
   rayIntersect(ray, maxDistance = 90) {
-    const hit = new C.RaycastResult(),
+    const hit = new CANNON.RaycastResult(),
       end = ray.origin.clone().addScaledVector(ray.direction, maxDistance);
     if (
       !this.world.raycastClosest(
@@ -634,11 +654,11 @@ export class CannonPhysics {
     const triangle = {
       getNormal: (target) => target.copy(normal),
       closestPointToPoint: (p, target) => {
-        if (shape instanceof C.Box) {
+        if (shape instanceof CANNON.Box) {
           const local = body.pointToLocalFrame(cv(p)),
             n = body.vectorToLocalFrame(cv(normal)),
             half = shape.halfExtents,
-            offset = body.shapeOffsets[body.shapes.indexOf(shape)] ?? new C.Vec3();
+            offset = body.shapeOffsets[body.shapes.indexOf(shape)] ?? new CANNON.Vec3();
           local.vsub(offset, local);
           local.x = Math.max(-half.x, Math.min(half.x, local.x));
           local.y = Math.max(-half.y, Math.min(half.y, local.y));

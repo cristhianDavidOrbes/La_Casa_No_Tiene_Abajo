@@ -43,6 +43,7 @@ export class BookBurst {
     if (state.room === this.room.id && !hidden && !state.inserted) {
       for (const shelf of this.shelves) {
         const id = 'archive-book-burst-' + shelf.index;
+        // SEMANA 9: acercarse a 3,2 m activa la zona una sola vez por partida.
         if (state.haunts.includes(id) || player.distanceTo(shelf.center) > 3.2) continue;
         state.haunts.push(id);
         onThrow(this.room.group.localToWorld(shelf.center.clone()));

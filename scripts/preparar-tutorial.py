@@ -1,4 +1,6 @@
-# Fotografías de mantenimiento: renderizar los mismos assets CC0 que utiliza el juego.
+# SEMANA 8, diapositivas 10–11 y 16: bpy crea objetos, escalas y materiales.
+# Aplicación real: las fotografías del televisor usan los mismos modelos del juego.
+# Se ejecuta en Blender al preparar los recursos, nunca durante la partida.
 from pathlib import Path
 from mathutils import Vector
 import bpy
@@ -16,6 +18,7 @@ def box(name, location, scale, color):
     bpy.ops.mesh.primitive_cube_add(size=1, location=location)
     obj = bpy.context.object
     obj.name = name
+    # Position/scale y material son los datos que después usará Three.js.
     obj.scale = scale
     obj.data.materials.append(material(name, color))
     return obj
