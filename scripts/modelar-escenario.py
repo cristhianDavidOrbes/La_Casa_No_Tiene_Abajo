@@ -1,7 +1,9 @@
 # Semana 8: modelar, aplicar transformaciones, UV, empaquetar y exportar GLB.
 # Ejecutar después de exportar-escenario.mjs con Blender en modo background.
 import bpy, bmesh, json, math
+from itertools import product
 from pathlib import Path
+from mathutils import Vector, Euler
 ROOT=Path(__file__).resolve().parent.parent
 DATA=json.loads((ROOT/'blender/escenario.json').read_text(encoding='utf-8'))
 bpy.ops.object.select_all(action='SELECT')
@@ -35,30 +37,93 @@ def material(room,kind):
         else:links.new(tex.outputs['Color'],shader.inputs['Roughness'])
     materials[key]=mat
     return mat
-# Caras de cada caja: el hueco existe porque NO se modela ningún bloque dentro de él.
-faces=[(0,3,2,1),(4,5,6,7),(0,1,5,4),(3,7,6,2),(0,4,7,3),(1,2,6,5)]
-objects=[]
-for number,box in enumerate(DATA['boxes']):
-    mesh=bpy.data.meshes.new('estructura_'+str(number))
-    mesh.from_pydata([(v['world'][0],-v['world'][2],v['world'][1]) for v in box['corners']],[],faces)
-    mesh.update();uv=mesh.uv_layers.new(name='UVMap')
-    for face_index,polygon in enumerate(mesh.polygons):
-        horizontal=face_index in (2,3);axis_x=face_index in (4,5);scale=2 if horizontal else 5
-        for loop_index in polygon.loop_indices:
-            local=box['corners'][mesh.loops[loop_index].vertex_index]['local']
-            uv.data[loop_index].uv=((local[0] if horizontal or not axis_x else local[2])/scale,(local[2] if horizontal else local[1])/scale)
-    obj=bpy.data.objects.new('muro_'+str(number),mesh);bpy.context.collection.objects.link(obj)
-    obj.data.materials.append(material(box['room'],box['material']));objects.append(obj)
-# Una sola malla, con sus materiales y UV. No se unen los objetos que deben moverse.
-bpy.ops.object.select_all(action='DESELECT')
-for obj in objects:obj.select_set(True)
-bpy.context.view_layer.objects.active=objects[0]
-bpy.ops.object.join()
-obj=bpy.context.object;obj.name='escenario_completo';obj.data.name='casa_habitaciones_pasillos'
-bpy.ops.object.transform_apply(location=True,rotation=True,scale=True)
-bm=bmesh.new();bm.from_mesh(obj.data)
-bmesh.ops.remove_doubles(bm,verts=list(bm.verts),dist=.00001)
-bmesh.ops.recalc_face_normals(bm,faces=list(bm.faces));bm.to_mesh(obj.data);bm.free()
+# Dividir el volumen en celdas rectangulares y modelar solo su superficie.
+# Se unen los bloques adyacentes y se descartan las caras internas.
+def blender_point(world):
+    x, y, z = world
+    return (round(x, 5), round(-z, 5), round(y, 5))
+
+bounds = []
+for box in DATA['boxes']:
+    corners = [blender_point(vertex['world']) for vertex in box['corners']]
+    bounds.append([(min(axis), max(axis)) for axis in zip(*corners)])
+planes = [sorted({value for bound in bounds for value in bound[axis]}) for axis in range(3)]
+indices = [{value: index for index, value in enumerate(axis)} for axis in planes]
+occupied = {}
+for box, bound in zip(DATA['boxes'], bounds):
+    cells = [range(indices[axis][low], indices[axis][high])
+             for axis, (low, high) in enumerate(bound)]
+    for cell in product(*cells):
+        occupied.setdefault(cell, (box['room'], box['material']))
+
+vertices, faces, face_data = [], [], []
+vertex_indices = {}
+for cell, material_key in occupied.items():
+    for axis in range(3):
+        u, v = (axis + 1) % 3, (axis + 2) % 3
+        for sign in (-1, 1):
+            neighbor = list(cell)
+            neighbor[axis] += sign
+            if tuple(neighbor) in occupied:
+                continue
+            face = []
+            for du, dv in ((0, 0), (1, 0), (1, 1), (0, 1)):
+                corner = list(cell)
+                corner[axis] += int(sign > 0)
+                corner[u] += du
+                corner[v] += dv
+                key = tuple(corner)
+                if key not in vertex_indices:
+                    vertex_indices[key] = len(vertices)
+                    vertices.append(tuple(planes[i][n] for i, n in enumerate(corner)))
+                face.append(vertex_indices[key])
+            faces.append(face if sign > 0 else face[::-1])
+            face_data.append(material_key)
+
+mesh = bpy.data.meshes.new('casa_habitaciones_pasillos')
+mesh.from_pydata(vertices, [], faces)
+mesh.update()
+slots = {}
+for polygon, key in zip(mesh.polygons, face_data):
+    room, kind = key
+    if key not in slots:
+        slots[key] = len(mesh.materials)
+        mesh.materials.append(material(room, kind))
+    polygon.material_index = slots[key]
+
+# Quitar las aristas coplanares antes de proyectar las UV.
+bm = bmesh.new()
+bm.from_mesh(mesh)
+bm.normal_update()
+bmesh.ops.dissolve_limit(bm, angle_limit=0.001, verts=list(bm.verts),
+                         edges=list(bm.edges), delimit={'MATERIAL'})
+bm.to_mesh(mesh)
+bm.free()
+mesh.update()
+
+keys = list(slots)
+uv = mesh.uv_layers.new(name='UVMap')
+for polygon in mesh.polygons:
+    room, kind = keys[polygon.material_index]
+    axis = max(range(3), key=lambda axis: abs(polygon.normal[axis]))
+    layout = DATA['rooms'][room]
+    ox, oy, oz = blender_point(layout['pos'])
+    c, s = round(math.cos(layout['angle'])), round(math.sin(layout['angle']))
+    horizontal = (axis == 2 and c != 0) or (axis == 0 and s != 0)
+    side = (axis == 0 and c != 0) or (axis == 2 and s != 0)
+    scale = 2 if horizontal else 5
+    for loop in polygon.loop_indices:
+        x, z, y = mesh.vertices[mesh.loops[loop].vertex_index].co
+        local_x = c * (x - ox) + s * (y - oz)
+        local_y = -s * (x - ox) + c * (y - oz)
+        local_z = oy - z
+        uv.data[loop].uv = ((local_z if side else local_x) / scale,
+                            (local_z if horizontal else local_y) / scale)
+
+obj = bpy.data.objects.new('escenario_completo', mesh)
+bpy.context.collection.objects.link(obj)
+obj.select_set(True)
+bpy.context.view_layer.objects.active = obj
 obj['habitaciones']=5;obj['conexiones']=4;obj['huecos']='entrada, ventana y accesos de gravedad'
 # Pack Resources guarda las imágenes dentro del .blend y el GLB incluye sus texturas.
 for image in bpy.data.images:
@@ -66,7 +131,6 @@ for image in bpy.data.images:
 # Al abrir el .blend se ve el conjunto seleccionado y completo en unidades métricas.
 bpy.context.scene.unit_settings.system='METRIC'
 bpy.context.preferences.filepaths.save_version=0
-from mathutils import Vector, Euler
 center=sum((Vector(v.co) for v in obj.data.vertices),Vector())/len(obj.data.vertices)
 for screen in bpy.data.screens:
     for area in screen.areas:

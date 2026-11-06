@@ -21,8 +21,8 @@ import { createEntryDoor, ENTRY_DOOR } from './entry-door.js';
 const loader = new GLTFLoader(),
   models = {},
   textures = {};
-const furniture = ['rugRectangle', 'lampWall', 'cardboardBoxClosed', 'speaker', 'computerKeyboard'];
-const station = ['pipe', 'wall-switch'];
+const furniture = ['rugRectangle', 'cardboardBoxClosed', 'speaker', 'computerKeyboard'];
+const station = ['wall-switch'];
 const haven = [
   'television_02',
   'ArmChair_01',
@@ -31,17 +31,12 @@ const haven = [
   'wooden_bookshelf_worn',
   'vintage_radio_transceiver',
   'power_box_01',
-  'hanging_industrial_lamp',
   'wooden_table_02',
   'painted_wooden_chair_01',
   'vintage_video_camera',
   'vintage_flashlight'
 ];
 const house = [
-  'Structure_Floor',
-  'Structure_Wall_Straight_Main',
-  'Structure_Wall_Straight_Base',
-  'Structure_Wall_Straight_Top',
   'Structure_Wall_Door',
   'Structure_Wall_Doorway',
   'Structure_Exterior_Window_Double',
@@ -207,13 +202,9 @@ function instance(name, { height, size, mat, raw = false } = {}) {
     bookcaseOpen: 'h-wooden_bookshelf_worn',
     bookcaseClosed: 'h-wooden_bookshelf_worn',
     radio: 'h-vintage_radio_transceiver',
-    lampSquareCeiling: 'h-hanging_industrial_lamp',
     table: 'h-wooden_table_02',
     desk: 'h-wooden_table_02',
-    chair: 'h-painted_wooden_chair_01',
-    floorFull: 'house-Structure_Floor',
-    wall: 'house-Structure_Wall_Straight_Main',
-    doorway: 'house-Structure_Wall_Door'
+    chair: 'h-painted_wooden_chair_01'
   };
   name = replacements[name] || name;
   if (name.startsWith('h-')) raw = true;
@@ -296,8 +287,7 @@ function prop(room, name, pos, height, rot = 0, solid = true, raw = false) {
   if (solid) collider(room, root);
   return root;
 }
-// Visible architecture uses downloaded GLB modules; sizes and placement assemble the level.
-function structure(room, name, size, pos, mat, repeat) {
+function structure(room, name, size, pos, mat) {
   if (size.some((n) => n < 0.001)) return null;
   const material = mat.clone();
   const root = instance(name, { size, mat: material });
@@ -391,15 +381,6 @@ function light(room, pos, color, power, range = 10) {
   return l;
 }
 function lamp(room) {
-  const p = [0, room.h - 0.65, 0];
-  const model = prop(room, 'lampSquareCeiling', p, 0.6, 0, false);
-  model.traverse((o) => {
-    if (o.isMesh) {
-      o.material = o.material.clone();
-      o.material.emissive.set('#bca97a');
-      o.material.emissiveIntensity = 0.4;
-    }
-  });
   const color = room.id === 0 ? '#ffe0a3' : room.id === 3 ? '#b6c9c4' : '#e0c6a6';
   const bulb = light(room, [0, room.h - 0.58, 0], color, room.id === 0 ? 42 : 30, 15);
   // SpotLight dirige un cono; shadow.mapSize limita el coste de su sombra.
@@ -412,34 +393,28 @@ function lamp(room) {
   shadow.shadow.bias = -0.0003;
   shadow.shadow.normalBias = 0.03;
   room.group.add(shadow, shadow.target);
-  room.bulb = { lamp: bulb, shadow, model, power: bulb.intensity };
-}
-function pipe(room, start, end, r = 0.05) {
-  const a = new THREE.Vector3(...start),
-    b = new THREE.Vector3(...end),
-    len = a.distanceTo(b),
-    m = instance('s-pipe', { size: [r * 2, len, r * 2] });
-  m.position.copy(a);
-  m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.sub(a).normalize());
-  room.group.add(m);
-  return m;
+  room.bulb = { lamp: bulb, shadow };
 }
 function shell(room) {
   for (const portal of room.portals.filter((p) => p.kind === 'floor')) {
-    portal.cover = structure(
-      room,
-      'floorFull',
-      [1.975, 0.065, 2.475],
-      [portal.x, -0.0325, portal.z],
-      room.id === 0 || room.id === 3 ? wood : plaster
-    );
+    const geometry = new THREE.BoxGeometry(1.975, 0.065, 2.475).translate(0, 0.0325, 0);
+    const { position, normal, uv } = geometry.attributes;
+    for (let i = 0; i < uv.count; i++) {
+      if (normal.getY(i) === 0) continue;
+      uv.setXY(i, (portal.x + position.getX(i)) / 2, 1 - (portal.z + position.getZ(i)) / 2);
+    }
+    const material = room.id === 0 || room.id === 3 ? wood : plaster;
+    const cover = new THREE.Mesh(geometry, material.clone());
+    cover.castShadow = cover.receiveShadow = true;
+    // El portal anima la tapa y Cannon comparte el mismo pivote.
+    portal.cover = new THREE.Group();
+    portal.cover.position.set(portal.x, -0.065, portal.z);
+    portal.cover.add(cover);
+    room.group.add(portal.cover);
     portal.openAmount = 0;
     light(room, [portal.x, -0.2, portal.z], '#acc5b2', 7, 4);
   }
   lamp(room);
-  if ([1, 2, 4].includes(room.id))
-    for (const z of [-room.d / 2 + 0.2, room.d / 2 - 0.2])
-      pipe(room, [-4.8, 3.35, z], [4.8, 3.35, z], 0.034);
 }
 function buildConnectors(scene) {
   return LINKS.map((link) => {
@@ -791,7 +766,6 @@ export function createWorld(scene) {
   sign(r4, ['REBOBINADOR DE JULIÁN', 'INSERTAR PARA VOLVER'], [-1.5, 2.2, -3.77], 2);
   for (const room of rooms.slice(1)) {
     for (const x of [-3, 3]) {
-      prop(room, 'lampWall', [x, 2.65, -3.8], 0.35, 0, false);
       light(room, [x, 2.6, -3.3], room.id === 4 ? '#b75c43' : '#b7c9af', 12, 6);
     }
   }
@@ -951,9 +925,6 @@ export function updateWorld(world, state, dt, time, comfort, enemy = null) {
       source.light.intensity = source.power * (room.hauntPower ?? 1) * bulbFactor;
     }
     room.bulb.shadow.intensity = (room.id === 0 ? 95 : 85) * (room.hauntPower ?? 1) * bulbFactor;
-    room.bulb.model.traverse((o) => {
-      if (o.isMesh) o.material.emissiveIntensity = 0.4 * (room.hauntPower ?? 1) * bulbFactor;
-    });
     if (room.locker) {
       const locker = room.locker;
       locker.doorTimer = Math.max(0, locker.doorTimer - dt);
